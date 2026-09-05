@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postseason Projection &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+/* Only what is specific to this view. Everything structural -- palette,
+   header, section, table, hero, tag -- comes from cfb.css. */
+.wk{margin-left:auto;display:flex;align-items:center;gap:12px;min-width:330px}
+.wk input[type=range]{flex:1;accent-color:var(--gold)}
+.wk b{font-family:'Barlow Condensed';font-size:19px;min-width:74px;text-align:right}
+.viewbar select{background:#243329;color:#EDF3EC;border:1px solid #3C4C41;
+  border-radius:6px;padding:7px 10px}
+tr.bye td{background:#F1F6F8}
+.sd{font-family:'Barlow Condensed';font-size:17px;font-weight:700;
+  width:34px;text-align:center}
+.tag.aq{background:#F4EDDC;color:var(--aq)}
+.tag.bye{background:#E3EDF3;color:var(--bye)}
+.gm{display:flex;align-items:center;gap:8px;padding:8px 14px;
+  border-bottom:1px solid var(--line);font-size:13.5px;min-width:0}
+.gm .at{color:var(--muted);font-size:12px}
+.gm .s{font-family:'Barlow Condensed';font-weight:700;color:var(--muted);
+  width:26px;text-align:right}
+.gm .wp{margin-left:auto;font-weight:600;color:var(--muted);font-size:12.5px}
+.gm.proj{opacity:.62}
+.gm .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:74px}
+.gm b.nm{max-width:82px}
+.rounds{display:flex;overflow-x:auto;align-items:flex-start}
+.rd{flex:1 0 232px;min-width:232px;border-right:1px solid var(--line)}
+.rd:last-child{border-right:0}
+.rd h3{font-size:11px;letter-spacing:.07em;color:var(--muted);
+  padding:9px 14px;background:#F4F7F2;border-bottom:1px solid var(--line);
+  white-space:nowrap}
+.rd .gm:last-child{border-bottom:0}
+.phase{font-family:'Barlow Condensed';font-size:12px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;
+  border-radius:3px;background:#E3EDF3;color:var(--bye)}
+.phase.locked{background:#E4EFE6;color:var(--pos)}
+a.tm{color:inherit;text-decoration:none;border-bottom:1px dotted var(--line-strong)}
+a.tm:hover{color:var(--field);border-bottom-color:var(--field)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Postseason <span>Projection</span></h1>
+  <span class="badge" id="badge">&mdash;</span>
+  <select id="div"></select>
+  <div class="wk">
+    <label for="week" class="dim" style="font-size:12px">Through week</label>
+    <input type="range" id="week" min="0" max="0" value="0" step="1">
+    <b id="wklabel">&mdash;</b>
+    <span class="phase" id="phase">&mdash;</span>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2><span id="rname">&mdash;</span><span class="hint" id="rhint"></span></h2>
+    <div class="hero" id="hero"></div>
+    <div class="note" id="rnote"></div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>The field <span class="hint" id="fhint"></span></h2>
+      <div id="fieldwrap"><div class="loading">Loading&hellip;</div></div>
+    </section>
+    <section>
+      <h2>Title odds <span class="hint" id="ohint"></span></h2>
+      <div id="odds"></div>
+      <h2 style="border-top:1px solid var(--line)">First teams out
+        <span class="hint">next in line</span></h2>
+      <div id="bubble"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>The bracket <span class="hint" id="bhint"></span></h2>
+    <div id="bracket"></div>
+  </section>
+
+  <section>
+    <h2>Conference championship games <span class="hint" id="tghint"></span></h2>
+    <div id="titlegames"></div>
+  </section>
+
+  <section>
+    <h2>Seed movement <span class="hint">every team that has held a seed</span></h2>
+    <svg id="mvchart" viewBox="0 0 940 300" role="img"
+         aria-label="Projected seed by week"></svg>
+    <div id="churn"></div>
+  </section>
+
+  <section>
+    <h2>Automatic bids <span class="hint" id="chint"></span></h2>
+    <div id="champs"></div>
+  </section>
+</main>
+
+<footer><div id="meta"></div></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+/* The view is season-agnostic. D is filled by fetch, not by a build-time
+   placeholder, so one shell serves every year and the year selector is
+   a request rather than a page load. */
+var D = null, cur = null, wk = 0;
+
+function esc(s){ return CFB.esc(s); }
+function f1(n){return (n===null||n===undefined)?'\u2014':(Math.round(n*10)/10).toFixed(1);}
+function rec(w,l){return (w===null||w===undefined)?'\u2014':(f1(w)+'-'+f1(l));}
+/* Team names link through to the team page wherever they appear. */
+function tl(n){ return CFB.teamLink(n, D && D.season); }
+
+var elDiv=document.getElementById('div'), elWk=document.getElementById('week');
+var divs=[];
+
+function snap(){ return cur.weeks[wk]; }
+function prevSnap(){ return wk>0 ? cur.weeks[wk-1] : null; }
+
+/* ------------------------------------------------------------------ */
+function drawHero(){
+  var s=snap(), r=cur.rules;
+  var aq=s.field.filter(function(t){return t.bid==='AQ';}).length;
+  var p=prevSnap(), was={}, isnew=0;
+  if(p) p.field.forEach(function(t){was[t.team_id]=t.seed;});
+  if(p) s.field.forEach(function(t){ if(was[t.team_id]===undefined) isnew++; });
+  document.getElementById('hero').innerHTML =
+    [[s.field.length+' / '+r.field,'teams placed'],
+     [aq+' / '+r.aq,'automatic bids'],
+     [(r.byes||'none'),'first-round byes'],
+     [s.played.toLocaleString(),'games counted'],
+     [(p?isnew:'—'),'new to the field this week']]
+    .map(function(x){return '<div><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div>';}).join('');
+}
+
+function drawField(){
+  var s=snap(), p=prevSnap(), was={};
+  if(p) p.field.forEach(function(t){was[t.team_id]=t.seed;});
+  if(!s.field.length){document.getElementById('fieldwrap').innerHTML=
+    '<div class="empty">No field at this week.</div>';return;}
+  var rows = s.field.map(function(t){
+    var w = was[t.team_id], mv='<span class="dim">—</span>';
+    if(p){
+      if(w===undefined) mv='<span class="tag new">in</span>';
+      else if(w>t.seed) mv='<span class="pos">&#9650; '+(w-t.seed)+'</span>';
+      else if(w<t.seed) mv='<span class="neg">&#9660; '+(t.seed-w)+'</span>';
+    }
+    return '<tr'+(t.bye?' class="bye"':'')+'>'
+      +'<td class="sd">'+t.seed+'</td>'
+      +'<td>'+tl(t.name)+(t.bye?' <span class="tag bye">bye</span>':'')+'</td>'
+      +'<td class="dim">'+esc(t.conference)+'</td>'
+      +'<td>'+(t.bid==='AQ'?'<span class="tag aq" title="'+esc(t.why)+'">AQ</span>'
+                          :'<span class="tag">at-large</span>')+'</td>'
+      +'<td class="num">'+rec(t.cur_w,t.cur_l)+'</td>'
+      +'<td class="num">'+f1(t.rating)+'</td>'
+      +'<td class="num">'+mv+'</td></tr>';}).join('');
+  document.getElementById('fieldwrap').innerHTML =
+    '<table><thead><tr><th>Seed</th><th>Team</th><th>Conference</th>'
+    +'<th>Bid</th><th class="num">Record</th><th class="num">Rating</th>'
+    +'<th class="num">vs last wk</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function drawBracket(){
+  var s=snap(), rounds=s.rounds||[], names=s.round_names||[];
+  if(!rounds.length){document.getElementById('bracket').innerHTML=
+    '<div class="empty">No bracket at this week.</div>';return;}
+  var h='<div class="rounds">';
+  rounds.forEach(function(rd,i){
+    h+='<div class="rd"><h3>'+esc(names[i]||('Round '+(i+1)))+'</h3>';
+    if(!rd.length){h+='<div class="gm dim">byes only</div>';}
+    rd.forEach(function(g){
+      /* A matchup is "certain" only when both slots are already
+         decided. Everything past the opening round is the most likely
+         pairing, not a fixture, and saying so matters -- a 6% chance
+         of happening should not look like a schedule. */
+      var pct=Math.round(100*g.wp_high);
+      h+='<div class="gm'+(g.certain?'':' proj')+'" title="'
+        +esc(g.low)+' '+(g.neutral?'vs':'at')+' '+esc(g.high)+'">'
+        +'<span class="s">('+g.low_seed+')</span> '
+        +'<span class="nm">'+tl(g.low)+'</span>'
+        +' <span class="at">'+(g.neutral?'vs':'at')+'</span> '
+        +'<span class="s">('+g.high_seed+')</span> '
+        +'<b class="nm">'+tl(g.high)+'</b>'
+        +'<span class="wp">'+pct+'%</span></div>';
+    });
+    h+='</div>';
+  });
+  document.getElementById('bracket').innerHTML=h+'</div>';
+  document.getElementById('bhint').textContent =
+    (cur.rules.geographic ? 'paired by rank — the real rule is travel distance; '
+                          : 'higher seed hosts early, neutral sites late; ')
+    + 'faded rounds are the likeliest pairing, not a fixture';
+}
+
+function drawOdds(){
+  var s=snap(), o=s.odds||[];
+  if(!o.length){document.getElementById('odds').innerHTML=
+    '<div class="empty">—</div>';return;}
+  var top=o.slice(0,10), max=o[0].title_prob||1;
+  document.getElementById('odds').innerHTML =
+    '<table><thead><tr><th>Seed</th><th>Team</th>'
+    +'<th class="num">Title</th><th></th></tr></thead><tbody>'
+    + top.map(function(t){
+        var p=100*t.title_prob;
+        return '<tr><td class="sd dim">'+t.seed+'</td><td>'+tl(t.name)
+          +'</td><td class="num">'+(p<0.05?'&lt;0.1':p.toFixed(1))+'%</td>'
+          +'<td style="width:38%"><span class="bar"><i style="width:'
+          +(100*(t.title_prob/max)).toFixed(1)+'%;background:var(--field)"></i>'
+          +'</span></td></tr>';}).join('')
+    +'</tbody></table>';
+  document.getElementById('ohint').textContent =
+    'exact, not simulated · ' + o.length + ' teams';
+}
+
+function drawTitleGames(){
+  var s=snap(), t=s.title_games||[];
+  if(!t.length){document.getElementById('titlegames').innerHTML=
+    '<div class="empty">No conference plays a title game at this level, '
+    +'or none has two teams decided yet.</div>';
+    document.getElementById('tghint').textContent='';return;}
+  document.getElementById('titlegames').innerHTML =
+    '<table><thead><tr><th>Conference</th><th>Favourite</th><th>Underdog</th>'
+    +'<th>Site</th><th class="num">Win prob</th><th class="num">Margin</th>'
+    +'</tr></thead><tbody>'
+    + t.map(function(g){
+        /* A near-even title game decides an automatic bid on a coin
+           flip, so mark it rather than letting 51% and 95% read alike. */
+        var close = g.win_prob < 0.60;
+        return '<tr><td class="dim">'+esc(g.conference)+'</td><td><b>'
+          +tl(g.favourite)+'</b></td><td>'+tl(g.underdog)+'</td>'
+          +'<td class="dim">'+esc(g.site)+'</td>'
+          +'<td class="num"'+(close?' style="color:var(--neg)"':'')+'>'
+          +(100*g.win_prob).toFixed(0)+'%</td>'
+          +'<td class="num dim">'+(g.margin>0?'+':'')+g.margin+'</td></tr>';
+      }).join('')
+    +'</tbody></table>';
+  var close=t.filter(function(g){return g.win_prob<0.60;}).length;
+  document.getElementById('tghint').textContent =
+    t.length+' games'+(close?' · '+close+' inside a touchdown':'');
+}
+
+function drawBubble(){
+  var s=snap();
+  if(!s.bubble.length){document.getElementById('bubble').innerHTML=
+    '<div class="empty">—</div>';return;}
+  document.getElementById('bubble').innerHTML =
+    '<table><thead><tr><th>Rank</th><th>Team</th><th>Conference</th>'
+    +'<th class="num">Record</th></tr></thead><tbody>'
+    + s.bubble.map(function(t){
+        return '<tr><td class="sd dim">'+t.rank+'</td><td>'+tl(t.name)
+          +'</td><td class="dim">'+esc(t.conference)+'</td>'
+          +'<td class="num">'+rec(t.cur_w,t.cur_l)+'</td></tr>';}).join('')
+    +'</tbody></table>';
+}
+
+function drawChamps(){
+  var s=snap();
+  if(!s.champions.length){document.getElementById('champs').innerHTML=
+    '<div class="empty">No conference has clinched yet.</div>';return;}
+  document.getElementById('champs').innerHTML =
+    '<table><thead><tr><th>Conference</th><th>Projected champion</th>'
+    +'<th>Runner-up</th><th>How it was decided</th></tr></thead><tbody>'
+    + s.champions.map(function(c){
+        var soft = /inconclusive|rating/.test(c.method||'');
+        return '<tr><td class="dim">'+esc(c.conference)+'</td><td><b>'
+          +tl(c.champion)+'</b></td><td class="dim">'+(c.runner_up?tl(c.runner_up):'—')
+          +'</td><td class="dim"'+(soft?' style="color:var(--neg)"':'')+'>'
+          +esc(c.method)+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  document.getElementById('chint').textContent =
+    s.champions.length+' conferences';
+}
+
+/* --- seed movement: one line per team that has ever held a seed ---- */
+function drawMovement(){
+  var W=940,H=300,L=44,R=112,T=16,B=26;
+  var weeks=cur.weeks.map(function(s){return s.week;});
+  var maxSeed=cur.rules.field;
+  var seen={};
+  cur.weeks.forEach(function(s){s.field.forEach(function(t){
+    (seen[t.team_id] = seen[t.team_id] || {name:t.name, pts:[]});});});
+  cur.weeks.forEach(function(s,i){
+    var have={};
+    s.field.forEach(function(t){ have[t.team_id]=t.seed;
+      seen[t.team_id].pts.push([i,t.seed]); });
+    Object.keys(seen).forEach(function(k){
+      if(have[k]===undefined) seen[k].pts.push([i,null]); });
+  });
+  var x=function(i){return L+(W-L-R)*(weeks.length<2?0:i/(weeks.length-1));};
+  var y=function(s){return T+(H-T-B)*((s-1)/Math.max(1,maxSeed-1));};
+  var g='';
+  for(var s=1;s<=maxSeed;s+=(maxSeed>16?4:(maxSeed>12?2:1))){
+    g+='<line x1="'+L+'" y1="'+y(s)+'" x2="'+(W-R)+'" y2="'+y(s)
+      +'" stroke="var(--line)"/><text x="'+(L-8)+'" y="'+(y(s)+4)
+      +'" text-anchor="end" font-size="10" fill="var(--muted)">'+s+'</text>';
+  }
+  weeks.forEach(function(w,i){
+    g+='<text x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10"'
+      +' fill="var(--muted)">'+w+'</text>';});
+  var last=cur.weeks[cur.weeks.length-1];
+  var inNow={}; last.field.forEach(function(t){inNow[t.team_id]=t.seed;});
+  Object.keys(seen).forEach(function(k){
+    var t=seen[k], segs=[], run=[];
+    t.pts.forEach(function(p){
+      if(p[1]===null){ if(run.length)segs.push(run); run=[]; }
+      else run.push(p);});
+    if(run.length)segs.push(run);
+    var here=inNow[k]!==undefined;
+    segs.forEach(function(sg){
+      g+='<polyline fill="none" stroke="'+(here?'var(--field)':'var(--line-strong)')
+        +'" stroke-width="'+(here?1.9:1.1)+'" opacity="'+(here?0.95:0.5)
+        +'" points="'+sg.map(function(p){return x(p[0])+','+y(p[1]);}).join(' ')+'"/>';
+    });
+    if(here) g+='<text x="'+(W-R+6)+'" y="'+(y(inNow[k])+3.5)
+      +'" font-size="10.5" fill="var(--ink)">'+esc(t.name)+'</text>';
+  });
+  document.getElementById('mvchart').innerHTML=g;
+
+  var ch={};
+  (cur.movement||[]).forEach(function(m){
+    if(m.change==='in'||m.change==='out'){
+      ch[m.week]=ch[m.week]||{in:0,out:0}; ch[m.week][m.change]++; }});
+  var ks=Object.keys(ch).filter(function(k){return +k!==weeks[0];});
+  document.getElementById('churn').innerHTML = ks.length
+    ? '<div class="note">Field changed in week'+(ks.length>1?'s':'')+' '
+      + ks.map(function(k){return k+' ('+ch[k]['in']+' in, '+ch[k].out+' out)';}).join(', ')
+      + '. A flat line after that means the bracket had settled.</div>'
+    : '';
+}
+
+/* ------------------------------------------------------------------ */
+function draw(){
+  var s=snap();
+  document.getElementById('wklabel').textContent='Week '+s.week;
+  /* #rname is its own span, not the <h2>. Assigning textContent to the
+     h2 would delete the sibling hint node and the next lookup would
+     return null -- see the markup comment. */
+  document.getElementById('rname').textContent=cur.division;
+  document.getElementById('rhint').textContent=
+    cur.rules.field+'-team field · '+cur.rules.aq+' automatic · '
+    +cur.rules.at_large+' at-large';
+  var P=cur.phases||{};
+  var phaseNote = P.field_set
+    ? ' <b>The field is set after week '+P.field_set+'</b>'
+      + (P.title_week ? ' (the conference championships)'
+                      : ' (the end of the regular season — this division '
+                        + 'crowns champions on record, with no title '
+                        + 'weekend)')
+      + '. Later weeks keep updating ratings and odds, but no team '
+      + 'enters, leaves or changes seed, because by then it cannot.'
+    : '';
+  document.getElementById('rnote').innerHTML = esc(cur.rules.note) + phaseNote
+    + (cur.rules.excluded.length
+       ? ' <b>Not eligible:</b> '+esc(cur.rules.excluded.join(', '))+'.' : '')
+    + ' <b>At-large order</b> is the blended projection — record and '
+    + 'competitiveness together — not the raw rating.'
+    + (cur.rules.geographic
+       ? ' <b>Pairings are approximate:</b> the real rule is geographic and '
+         + 'this project has no coordinates, so opening-round matchups are '
+         + 'paired by rank instead.' : '');
+  var ph=document.getElementById('phase');
+  ph.textContent = s.phase || '';
+  ph.className = 'phase' + (s.locked ? ' locked' : '');
+  document.getElementById('fhint').textContent =
+    s.locked ? 'final field — bracket in progress'
+             : 'projected through week '+s.week;
+  drawHero(); drawField(); drawOdds(); drawBracket(); drawBubble();
+  drawTitleGames(); drawChamps();
+}
+function load(d){
+  cur = D.divisions[d];
+  if(!cur) return;
+  elWk.max = cur.weeks.length-1;
+  if(wk > cur.weeks.length-1) wk = cur.weeks.length-1;
+  elWk.value = wk;
+  document.getElementById('badge').textContent = D.season;
+  CFB.setParams({div:d});
+  drawMovement(); draw();
+}
+
+elDiv.addEventListener('change', function(){ wk = cur ? wk : 0; load(elDiv.value); });
+elWk.addEventListener('input', function(){ wk=+elWk.value; CFB.setParams({week:cur.weeks[wk].week}); draw(); });
+/* Arrow keys move one week. When the slider itself has focus the range
+   input already handles the arrow natively and fires 'input', so a
+   document-level handler would apply a second step on top of it and the
+   week would jump by two. Let the input own its own keys. */
+document.addEventListener('keydown', function(e){
+  if(e.target===elWk||e.target===elDiv) return;
+  if(e.key==='ArrowLeft'&&wk>0){wk--;elWk.value=wk;draw();}
+  if(e.key==='ArrowRight'&&wk<cur.weeks.length-1){wk++;elWk.value=wk;draw();}
+});
+
+/* Restore division and week from the URL so a link points at exactly
+   the bracket the sender was looking at, not just the newest one. */
+function init(data){
+  D = data;
+  /* A season with no played games produces a payload whose divisions
+     carry no weeks. Reading cur.weeks[wk] on that throws, and every
+     panel below stays blank -- which is exactly what a preseason year
+     looked like once the year selector started honouring the URL
+     instead of always landing on a finished season. Say so instead. */
+  divs = Object.keys(D.divisions || {}).filter(function(d){
+    return ((D.divisions[d] || {}).weeks || []).length; });
+  if(!divs.length){
+    document.getElementById('fieldwrap').innerHTML =
+      '<div class="empty">No bracket for ' + esc(D.season) + ' yet.<br>'
+      + 'The field is projected once games have been played.</div>';
+    document.getElementById('badge').textContent = D.season;
+    document.getElementById('rname').textContent = 'No results yet';
+    document.getElementById('meta').textContent =
+      'Season ' + D.season + ' has no completed games.';
+    return;
+  }
+  elDiv.innerHTML = divs.map(function(d){
+    return '<option value="'+esc(d)+'">'+esc(d)+'</option>';}).join('');
+  var p = CFB.params();
+  var d = divs.indexOf(p.div) >= 0 ? p.div : divs[0];
+  elDiv.value = d;
+  var weeks = D.divisions[d].weeks;
+  var wantWeek = parseInt(p.week, 10);
+  var idx = -1;
+  if(!isNaN(wantWeek)){
+    for(var i=0;i<weeks.length;i++) if(weeks[i].week===wantWeek){idx=i;break;}
+  }
+  wk = idx >= 0 ? idx : weeks.length-1;
+  load(d);
+  document.getElementById('meta').textContent =
+    'Season '+D.season+' \u00b7 generated '+D.generated
+    + ' \u00b7 seeds are projections from the model, not committee rankings.';
+}
+
+CFB.boot({
+  active: 'postseason',
+  view: 'postseason',
+  into: 'fieldwrap',
+  onYear: function(year){
+    document.getElementById('fieldwrap').innerHTML =
+      '<div class="loading">Loading '+year+'&hellip;</div>';
+    CFB.load('postseason', year).then(init).catch(function(e){
+      CFB.fail('fieldwrap', e);
+    });
+  }
+});
+</script>
+</body>
+</html>

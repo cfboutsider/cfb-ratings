@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talent Board &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+#badge{font-size:12.5px;color:#9FB3A4;letter-spacing:.04em}
+.ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.ctl input,.ctl select{padding:7px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+main{max-width:1180px;margin:0 auto;padding:20px}
+section{background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:16px 18px;margin-bottom:18px}
+h2{font-size:17px;margin-bottom:4px}
+.hint{font-size:12.5px;color:var(--muted);text-transform:none;
+  font-family:'Barlow',sans-serif;letter-spacing:0;font-weight:400}
+.dim{color:var(--muted)}
+.tb-tw{overflow-x:auto}
+#tbl{max-height:72vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;
+  white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--muted);cursor:pointer;user-select:none}
+th.num,td.num{text-align:right}
+tbody tr:hover{background:#EFF4EC}
+.tb-bar{display:inline-block;width:120px;height:9px;background:var(--line);
+  border-radius:5px;overflow:hidden;vertical-align:middle}
+.tb-bar i{display:block;height:100%;background:var(--field)}
+.tb-bar i.alt{background:var(--gold)}
+.pill{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11.5px;
+  background:var(--line);color:var(--muted)}
+.up{color:var(--pos);font-weight:600}
+.down{color:var(--neg);font-weight:600}
+.tb-note{font-size:13px;color:var(--muted);line-height:1.65}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 34px;
+  font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Talent <span>Board</span></h1>
+  <span id="badge"></span>
+  <div class="ctl">
+    <input id="find" placeholder="filter teams…" size="18">
+    <select id="div"><option value="">All divisions</option></select>
+    <select id="conf"><option value="">All conferences</option></select>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2>What these two columns are
+        <span class="hint">read this before comparing them</span></h2>
+    <p class="tb-note" id="note"></p>
+  </section>
+
+  <section>
+    <h2>Teams <span class="hint" id="cnt"></span></h2>
+    <div class="tb-tw" id="tbl"></div>
+  </section>
+</main>
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/talent_board.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function f1(n){return (n===null||n===undefined)?'—':(Math.round(n*10)/10).toFixed(1);}
+
+var sortKey='composite', sortDir=-1;
+var fDiv='', fConf='', fText='';
+
+(function init(){
+  document.getElementById('badge').textContent =
+    D.year+' · talent from '+D.source+' · rosters from '+D.roster;
+  document.getElementById('note').innerHTML = esc(D.note);
+  document.getElementById('meta').textContent = 'generated '+D.generated;
+  var ds={}, cs={};
+  D.teams.forEach(function(t){ if(t.division)ds[t.division]=1;
+                               if(t.conference)cs[t.conference]=1; });
+  fill('div', ds); fill('conf', cs);
+  ['find','div','conf'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', read);
+    document.getElementById(id).addEventListener('change', read);
+  });
+  draw();
+})();
+
+function fill(id, obj){
+  var el=document.getElementById(id);
+  Object.keys(obj).sort().forEach(function(k){
+    var o=document.createElement('option'); o.value=k; o.textContent=k;
+    el.appendChild(o);
+  });
+}
+function read(){
+  fText=document.getElementById('find').value.toLowerCase();
+  fDiv=document.getElementById('div').value;
+  fConf=document.getElementById('conf').value;
+  draw();
+}
+
+function rows(){
+  return D.teams.filter(function(t){
+    if(fDiv && t.division!==fDiv) return false;
+    if(fConf && t.conference!==fConf) return false;
+    if(fText && String(t.name).toLowerCase().indexOf(fText)<0) return false;
+    return true;
+  });
+}
+
+/* Ranks, never a difference of the two raw numbers.
+
+   Talent spreads over a standard deviation of 21 composite points;
+   production is a T-score with mean 50 and sd 10, and is shrunk toward
+   the league by coverage before that map is applied. A
+   subtraction of the two is therefore a scale artefact wearing a
+   finding's clothes: every strong roster reads as underachieving and
+   every thin one as overachieving, and neither is true. So the gap
+   column is a gap in RANK, which is comparable by construction, and
+   the raw values sit beside it for anyone who wants them. */
+function draw(){
+  var r = rows().slice();
+  r.sort(function(a,b){
+    var x=a[sortKey], y=b[sortKey];
+    if(x===null||x===undefined) return 1;
+    if(y===null||y===undefined) return -1;
+    return (x<y?-1:x>y?1:0)*sortDir;
+  });
+  document.getElementById('cnt').textContent =
+    r.length+' of '+D.teams.length+' shown · click a header to sort';
+
+  var head = [['name','Team'],['division','Div'],['conference','Conference'],
+              ['talent_rank','Talent #'],['composite','Talent'],
+              ['prod_rank','Prod #'],['production','Production'],
+              ['n_scored','Measured']];
+  var html='<table><thead><tr>'
+    +head.map(function(h){
+      var num=(h[0]!=='name'&&h[0]!=='division'&&h[0]!=='conference');
+      return '<th class="'+(num?'num':'')+'" data-k="'+h[0]+'">'+h[1]
+        +(sortKey===h[0]?(sortDir<0?' ▾':' ▴'):'')+'</th>';})
+      .join('')
+    +'<th class="num">Rank move</th></tr></thead><tbody>'
+    +r.map(function(t){
+      var move=(t.talent_rank!==null&&t.prod_rank!==null)
+        ? (t.talent_rank - t.prod_rank) : null;
+      var cls = move===null?'dim':move>0?'up':move<0?'down':'dim';
+      return '<tr><td><b>'+esc(String(t.name).replace(/_/g,' '))+'</b></td>'
+        +'<td class="dim">'+esc(t.division)+'</td>'
+        +'<td class="dim">'+esc(t.conference)+'</td>'
+        +'<td class="num dim">'+(t.talent_rank===null?'—':t.talent_rank)+'</td>'
+        +'<td class="num">'+f1(t.composite)
+          +' <span class="tb-bar"><i style="width:'
+          +Math.max(0,Math.min(100,t.composite)).toFixed(0)+'%"></i></span></td>'
+        +'<td class="num dim">'+(t.prod_rank===null?'—':t.prod_rank)+'</td>'
+        +'<td class="num">'+f1(t.production)
+          +(t.production===null?'':' <span class="tb-bar"><i class="alt" style="width:'
+          +Math.max(0,Math.min(100,t.production)).toFixed(0)+'%"></i></span>')
+          +'</td>'
+        +'<td class="num dim">'+t.n_scored+' of '+t.n_players+'</td>'
+        +'<td class="num '+cls+'">'
+          +(move===null?'—':(move>0?'+':'')+move)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  var box=document.getElementById('tbl');
+  box.innerHTML=html;
+  Array.prototype.forEach.call(box.querySelectorAll('th[data-k]'),
+    function(th){
+      th.addEventListener('click', function(){
+        var k=th.getAttribute('data-k');
+        if(k===sortKey){ sortDir=-sortDir; } else { sortKey=k; sortDir=-1; }
+        draw();
+      });
+    });
+}
+
+}
+
+CFB.bootOnce({
+  active: 'talentboard', view: 'talentboard',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Off Season &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+.badge{font-family:'Barlow Condensed';font-size:13px;font-weight:600;
+  letter-spacing:.09em;background:var(--gold);color:#17241C;
+  padding:3px 10px;border-radius:3px}
+.weekbox{display:flex;align-items:center;gap:10px;margin-left:auto}
+.weekbox label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#A9BCAA}
+.weekbox output{font-family:'Barlow Condensed';font-size:19px;font-weight:600;
+  min-width:80px;text-align:center;background:#243329;border-radius:4px;padding:2px 8px}
+input[type=range]{accent-color:var(--gold);width:170px}
+
+main{max-width:1240px;margin:0 auto;padding:20px}
+.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:940px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+section>h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+section>h2::before{content:"";width:8px;height:8px;background:var(--gold)}
+section>h2 .hint{margin-left:auto;font-family:'Barlow';font-size:11.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}
+.filters input[type=search],.filters select{padding:7px 10px;border:1px solid var(--line-strong);
+  border-radius:6px;background:#fff}
+.filters input[type=search]{flex:1;min-width:150px}
+.chip{border:1px solid var(--line-strong);background:#fff;border-radius:999px;
+  padding:5px 12px;font-size:13px;font-weight:500;color:var(--muted)}
+.chip.on{color:#fff;border-color:transparent;background:var(--ink)}
+.chipsep{width:1px;height:22px;background:var(--line-strong);margin:0 2px}
+.filters2{padding-top:8px;padding-bottom:8px;gap:6px}
+.filters2 #groups,.filters2 #tiers{display:inline-flex;gap:6px;flex-wrap:wrap}
+.flabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);font-weight:600}
+/* Half-lit: some of the group's divisions are on, not all. Saying
+   "partly" beats picking a side and being wrong either way. */
+.chip.part{background:linear-gradient(90deg,var(--ink) 50%,#fff 50%);
+  color:var(--ink);border-color:var(--line-strong)}
+.chip.grp.on{background:var(--ink);color:#fff;border-color:transparent}
+.chip[disabled]{cursor:not-allowed}
+
+.tablewrap{max-height:68vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:11px;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  padding:8px 10px;border-bottom:2px solid var(--line-strong);z-index:1}
+td{padding:7px 10px;border-bottom:1px solid var(--line)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#EDF3EA}
+tbody tr.sel{background:#E5EFE4;box-shadow:inset 3px 0 0 var(--gold)}
+.rk{font-family:'Barlow Condensed';font-size:16px;font-weight:600;width:44px;color:var(--muted)}
+.tname{font-weight:600}
+.tname small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.divtag{font-size:10px;font-weight:600;letter-spacing:.05em;color:#fff;
+  border-radius:3px;padding:2px 6px;display:inline-block;white-space:nowrap}
+.num{text-align:right;font-weight:600}
+/* Two explicit rows. The projector and team detail stay level with the
+   rankings; the conference table and its standings sit underneath as
+   their own pair. Without the explicit placement the auto-flow drops
+   the conference table into whichever cell happens to be free, which
+   is what left it stranded beside empty space. */
+#ranksec{grid-column:1;grid-row:1}
+.col{grid-column:2;grid-row:1}
+#confsec{grid-column:1;grid-row:2}
+#standsec{grid-column:2;grid-row:2}
+@media(max-width:940px){
+  #ranksec,.col,#confsec,#standsec{grid-column:1;grid-row:auto}
+}
+.pickhint{font-family:'Barlow';font-size:9.5px;text-transform:none;
+  letter-spacing:0;color:var(--line-strong);font-weight:400}
+.conftbl tbody tr.sel{background:#E5EFE4;box-shadow:inset 3px 0 0 var(--gold)}
+.conftbl{font-size:13px}
+.conftbl th{padding:7px 6px;font-size:10px;letter-spacing:.05em}
+.conftbl td{padding:6px;border-bottom:1px solid var(--line);cursor:default}
+.conftbl th.num,.conftbl td.num{text-align:right;white-space:nowrap}
+.conftbl tbody tr{cursor:pointer}
+.conftbl .cname{font-weight:600;max-width:200px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.conftbl .dim{color:var(--muted);font-weight:400}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.range{width:140px}
+.range svg{display:block;width:100%;height:16px}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+
+.pad{padding:16px}
+.dhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.dhead h3{font-size:25px}
+.dstats{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0 14px}
+.dstats div b{display:block;font-family:'Barlow Condensed';font-size:21px;font-weight:700}
+.dstats div span{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.chart{width:100%;border:1px solid var(--line);border-radius:6px;background:#fff}
+.log{margin-top:12px;max-height:220px;overflow:auto;font-size:13.5px}
+.log table td{padding:5px 8px}
+.res-W{color:var(--pos);font-weight:700}.res-L{color:var(--neg);font-weight:700}
+.bars{margin-top:10px;font-size:13px}
+.barhead{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:2px 0 4px;padding-bottom:3px;border-bottom:1px solid #EDF1EA}
+.barnote{font-size:11.5px;color:var(--muted);font-style:italic;margin-top:4px}
+.barrow{display:grid;grid-template-columns:120px 1fr 52px;gap:8px;align-items:center;margin:3px 0}
+.bartrack{position:relative;height:12px;background:#EDF1EA;border-radius:3px}
+.barfill{position:absolute;top:0;height:12px;border-radius:3px}
+.barmid{position:absolute;left:50%;top:-2px;width:1px;height:16px;background:var(--line-strong)}
+
+.pick{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+.pick label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:block;margin-bottom:4px}
+.pick select{width:100%;padding:8px;border:1px solid var(--line-strong);border-radius:6px;background:#fff}
+.at{font-family:'Barlow Condensed';font-weight:600;color:var(--muted);padding-bottom:9px}
+.neutral{margin-top:10px;font-size:13.5px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.verdict{margin:14px 0 4px;text-align:center}
+.verdict .spread{font-family:'Barlow Condensed';font-size:29px;font-weight:700}
+.verdict .sub{color:var(--muted);font-size:13px}
+.wpbar{display:flex;height:29px;border-radius:6px;overflow:hidden;margin:12px 0 4px;
+  font-family:'Barlow Condensed';font-size:15px;font-weight:600;color:#fff}
+.wpbar div{display:flex;align-items:center;padding:0 10px;min-width:0;white-space:nowrap;overflow:hidden}
+.wpbar .away{justify-content:flex-end;margin-left:auto}
+footer{padding:18px 20px;color:var(--muted);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Competitiveness <span>Board</span></h1>
+  <span class="badge" id="badge">—</span>
+  <div class="weekbox" id="weekbox" style="display:none">
+    <label for="wk">Ratings as of</label>
+    <input type="range" id="wk" min="0" max="0" value="0" step="1">
+    <output id="wkout">—</output>
+  </div>
+</div>
+
+<main>
+<div class="grid">
+  <section id="ranksec">
+    <h2>Rankings <span class="hint" id="rankhint"></span></h2>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search team…" aria-label="Search teams">
+      <select id="confFilter" aria-label="Filter by conference"><option value="">All conferences</option></select>
+      <span id="modes"></span>
+      <span class="chipsep" id="sep" style="display:none"></span>
+      <span id="chips"></span>
+    </div>
+    <div class="filters filters2">
+      <span class="flabel">Group</span><span id="groups"></span>
+      <span class="chipsep"></span>
+      <span class="flabel">FBS tier</span><span id="tiers"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr id="headrow"></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+
+
+  <div class="col">
+    <section>
+      <h2>Matchup projector</h2>
+      <div class="pad">
+        <div class="pick">
+          <div><label for="selAway">Away</label><select id="selAway"></select></div>
+          <div class="at">AT</div>
+          <div><label for="selHome">Home</label><select id="selHome"></select></div>
+        </div>
+        <label class="neutral"><input type="checkbox" id="neutral"> Neutral site</label>
+        <div class="verdict"><div class="spread" id="vSpread">—</div>
+          <div class="sub" id="vSub"></div></div>
+        <div class="wpbar" id="wpbar"></div>
+        <svg id="curves" viewBox="0 0 460 108" style="width:100%;margin-top:8px"
+             role="img" aria-label="Rating distributions"></svg>
+      </div>
+    </section>
+
+    <section>
+      <h2>Team detail</h2>
+      <div class="pad" id="detail"><div class="empty">Select a team to see details.</div></div>
+    </section>
+  </div>
+
+  <section id="confsec" style="display:none">
+    <h2>Conferences <span class="hint" id="confhint"></span></h2>
+    <div class="tablewrap" style="max-height:none">
+      <table class="conftbl">
+        <thead><tr>
+          <th>Conference<span class="pickhint"> — click for standings</span></th>
+          <th class="num" title="Teams in the conference">Tm</th>
+          <th class="num" title="Mean competitiveness of its teams">Rtg</th>
+          <th class="num" title="Mean talent composite. Blank where the composite reaches too few of the league to mean anything.">Tal</th>
+          <th class="num" title="Out-of-conference games. In-conference games cancel out and carry no information about a league.">OOC</th>
+          <th class="num" title="Actual out-of-conference record">W–L</th>
+          <th class="num" title="Expected OOC wins using the ratings the teams STARTED the season with">xPre</th>
+          <th class="num" title="Expected OOC wins using their CURRENT ratings. Partly circular: those same results moved the ratings.">xNow</th>
+          <th class="num" title="Actual wins minus xPre. Positive means the conference beat its preseason billing.">+/−</th>
+        </tr></thead>
+        <tbody id="confrows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="standsec" style="display:none">
+    <h2>Conference standings <span class="hint" id="standhint">projected</span></h2>
+    <div class="tablewrap" style="max-height:none">
+      <table><thead><tr><th>#</th><th>Team</th>
+        <th style="text-align:right">Conf</th><th style="text-align:right">Overall</th>
+        <th style="text-align:right">Rating</th></tr></thead>
+        <tbody id="strows"></tbody></table>
+    </div>
+  </section>
+</div>
+<footer id="meta"></footer>
+</main>
+
+<script>
+
+</script>
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/template.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+(function(){
+"use strict";
+
+if(!D||!D.teams){document.body.innerHTML='<p style="padding:40px">No data.</p>';return;}
+
+var PALETTE=['#2F6B47','#3C6FB0','#8455A8','#C56A2B','#B04343','#2A7D7B','#7A6A3A','#6B7280'];
+var divColor={};D.divisions.forEach(function(d,i){divColor[d]=PALETTE[i%PALETTE.length];});
+function colorOf(d){return divColor[d]||'#6B7280';}
+
+var teams=D.teams,byId={};teams.forEach(function(t){byId[t.id]=t;});
+var K=D.config.k,SIGM=D.config.margin_sigma_pts,HFA=D.config.hfa_pts;
+var HASP=!!D.has_projections,HASH=!!D.has_history;
+var weeks=D.weeks||[],lastWeek=weeks.length?weeks[weeks.length-1]:0;
+var curWeek=lastWeek,divFilter={},confFilter='',query='',selected=null,mode='rating';
+D.divisions.forEach(function(d){divFilter[d]=true;});
+
+/* Coarse groupings over the division codes. These are presets that drive
+   divFilter rather than a second filter dimension -- two independent
+   controls over the same axis can be set to contradict each other and
+   silently return nothing. */
+var DIV_GROUPS=[
+  {label:'NCAA / NAIA', divs:['NCAA FBS','NCAA FCS','NCAA D1','NCAA D2',
+                              'NCAA D3','NAIA','Other']},
+  {label:'Junior college', divs:['CCCAA','NCCAA','NJCAA']},
+  {label:'U-Sports', divs:['U-Sports']}
+];
+DIV_GROUPS.forEach(function(g){
+  g.present=g.divs.filter(function(d){return D.divisions.indexOf(d)>=0;});
+});
+
+/* P4 / G6. Conference names arrive misspelled often enough that an exact
+   list misses real members -- 2025 files SMU under "Alantic Coast
+   Coference" -- so match on the distinctive words instead. Notre Dame is
+   P4 by name in any year it is independent; every other independent is
+   G6, which for 2026 means UConn alone. */
+var P4_PATTERNS=[/southeastern/,/big\s*ten/,/big\s*12/,/a[lt]?lantic\s*coast/,
+                 /^acc$/,/^sec$/,/^b1g$/];
+function confKey(s){return String(s||'').toLowerCase()
+  .replace(/\bconference\b|\bfootball\b/g,' ').replace(/\s+/g,' ').trim();}
+function isP4(t){
+  if(t.division!=='NCAA FBS')return false;
+  if(/notre\s*dame/i.test(String(t.name).replace(/_/g,' ')))return true;
+  var k=confKey(t.conference);
+  return P4_PATTERNS.some(function(re){return re.test(k);});
+}
+function tierOf(t){return isP4(t)?'P4':'G6';}
+var tierFilter={P4:false,G6:false};
+function tierActive(){return tierFilter.P4||tierFilter.G6;}
+
+function erf(x){var s=x<0?-1:1;x=Math.abs(x);
+  var a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  var t=1/(1+p*x);
+  return s*(1-(((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t)*Math.exp(-x*x));}
+function cdf(x){return 0.5*(1+erf(x/Math.SQRT2));}
+function fmt(n){return (Math.round(n*10)/10).toFixed(1);}
+function rec(w,l){var f=function(n){return (Math.round(n*10)/10).toString().replace(/\.0$/,'');};
+  return f(w)+'\u2013'+f(l);}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function stateAt(t,w){if(!t.history||!t.history.length)return{mu:t.mu,sigma:t.sigma};
+  var h=t.history[0];for(var i=0;i<t.history.length;i++){
+    if(t.history[i].week<=w)h=t.history[i];else break;}return h;}
+
+// header ---------------------------------------------------------------
+var LABEL={offseason:'Offseason priors',preseason:'Preseason projection',season:'In season'};
+document.getElementById('badge').textContent=(LABEL[D.mode]||D.mode)+' \u00b7 '+D.year;
+if(HASH&&lastWeek>0){
+  document.getElementById('weekbox').style.display='';
+  var wk=document.getElementById('wk'),wko=document.getElementById('wkout');
+  wk.max=lastWeek;wk.value=lastWeek;
+  wko.textContent='Week '+lastWeek;
+  wk.addEventListener('input',function(){curWeek=+wk.value;
+    wko.textContent=curWeek===0?'Preseason':'Week '+curWeek;renderAll();});
+}
+
+// filters --------------------------------------------------------------
+var divChipBtns={};
+
+/* Group bubbles. Three states, because a group whose divisions are only
+   partly on should say so rather than lying in either direction. */
+var groupWrap=document.getElementById('groups');
+DIV_GROUPS.forEach(function(g){
+  if(!g.present.length)return;
+  var b=document.createElement('button');
+  b.className='chip grp';b.textContent=g.label;
+  b.title=g.present.join(', ');
+  b.addEventListener('click',function(){
+    var allOn=g.present.every(function(d){return divFilter[d];});
+    g.present.forEach(function(d){divFilter[d]=!allOn;});
+    syncDivChips();renderTable();});
+  g.btn=b;groupWrap.appendChild(b);});
+
+/* P4 / G6. A separate axis from division, so it gets its own toggles --
+   but selecting either implies FBS, since "show me the G6" is not a
+   request to also see 240 D3 programmes. */
+var tierWrap=document.getElementById('tiers');
+if(D.divisions.indexOf('NCAA FBS')>=0){
+  [['P4','P4','SEC, Big Ten, Big 12, ACC, and Notre Dame'],
+   ['G6','G6','Every other FBS conference, plus independents other than Notre Dame']]
+  .forEach(function(spec){
+    var b=document.createElement('button');
+    b.className='chip';b.textContent=spec[1];b.title=spec[2];
+    b.addEventListener('click',function(){
+      tierFilter[spec[0]]=!tierFilter[spec[0]];
+      b.classList.toggle('on',tierFilter[spec[0]]);
+      syncDivChips();renderTable();});
+    tierWrap.appendChild(b);});
+}
+
+function paintChip(b,on,bg){
+  if(on){b.classList.add('on');
+    if(bg){b.style.background=bg;b.style.color='#fff';
+      b.style.borderColor='transparent';}}
+  else{b.classList.remove('on');b.style.background='#fff';
+    b.style.color='var(--muted)';b.style.borderColor='var(--line-strong)';}
+}
+function syncDivChips(){
+  D.divisions.forEach(function(d){
+    var b=divChipBtns[d];if(b)paintChip(b,divFilter[d],colorOf(d));});
+  DIV_GROUPS.forEach(function(g){
+    if(!g.btn)return;
+    var on=g.present.filter(function(d){return divFilter[d];}).length;
+    g.btn.classList.toggle('on',on===g.present.length);
+    g.btn.classList.toggle('part',on>0&&on<g.present.length);});
+  // FBS off means the tier chips can't match anything; say so.
+  var fbsOn=divFilter['NCAA FBS'];
+  tierWrap.querySelectorAll('.chip').forEach(function(b){
+    b.disabled=!fbsOn;b.style.opacity=fbsOn?'':'0.4';});
+}
+
+var chips=document.getElementById('chips');
+D.divisions.forEach(function(d){
+  var b=document.createElement('button');b.className='chip on';b.textContent=d;
+  b.style.background=colorOf(d);b.style.color='#fff';b.style.borderColor='transparent';
+  b.addEventListener('click',function(){
+    divFilter[d]=!divFilter[d];syncDivChips();renderTable();});
+  divChipBtns[d]=b;chips.appendChild(b);});
+syncDivChips();
+document.getElementById('q').addEventListener('input',function(e){
+  query=e.target.value.toLowerCase();renderTable();});
+var cf=document.getElementById('confFilter');
+cf.addEventListener('change',function(){confFilter=cf.value;renderTable();});
+
+/* The dropdown lists only conferences that survive the current division
+   and tier filters, so it stops offering 100 leagues you have already
+   filtered away. Built ignoring confFilter itself, or picking one option
+   would empty the list of every other. */
+function syncConfOptions(){
+  var seen={};
+  teams.forEach(function(t){
+    if(!passesScope(t))return;
+    if(t.conference)seen[t.conference]=true;});
+  var list=Object.keys(seen).sort();
+  if(confFilter&&list.indexOf(confFilter)<0){confFilter='';}
+  cf.innerHTML='<option value="">All conferences'
+    +(list.length?' ('+list.length+')':'')+'</option>'
+    +list.map(function(c){
+      return '<option value="'+esc(c)+'"'+(c===confFilter?' selected':'')
+        +'>'+esc(c)+'</option>';}).join('');
+}
+
+// ranking modes --------------------------------------------------------
+if(HASP){
+  document.getElementById('sep').style.display='';
+  [['rating','Rating'],['bcur','Blend\u00b7Now'],['bproj','Blend\u00b7Proj']]
+  .forEach(function(pair){
+    var b=document.createElement('button');
+    b.className='chip'+(pair[0]===mode?' on':'');b.textContent=pair[1];
+    b.title=pair[0]==='rating'?'Pure competitiveness order':
+      'Within '+D.config.band+' points, the better '+
+      (pair[0]==='bcur'?'current':'projected')+' record ranks higher';
+    b.addEventListener('click',function(){
+      mode=pair[0];
+      document.getElementById('modes').querySelectorAll('.chip')
+        .forEach(function(c){c.classList.remove('on');});
+      b.classList.add('on');renderTable();});
+    document.getElementById('modes').appendChild(b);});
+}
+
+// table ----------------------------------------------------------------
+var COLS=[{h:'#'},{h:'Team'},{h:'Div'},{h:'Rating',r:1}];
+if(D.mode==='offseason')COLS.push({h:'Off-season adj',r:1});
+else if(HASH)COLS.push({h:'\u0394 Season',r:1});
+COLS.push({h:'Uncertainty range'});
+if(D.mode!=='offseason')COLS.push({h:'W\u2013L',r:1});
+if(HASP)COLS.push({h:'Proj W\u2013L',r:1});
+document.getElementById('headrow').innerHTML=COLS.map(function(c){
+  return '<th'+(c.r?' style="text-align:right"':'')+'>'+c.h+'</th>';}).join('');
+document.getElementById('rankhint').textContent=
+  D.mode==='offseason'?'carried-over score + offseason adjustments'
+                      :'rating shown with its \u00b12\u03c3 range';
+
+function rangeBar(lo,mu,hi,gLo,gHi,color){
+  var X=function(v){return 3+134*(v-gLo)/((gHi-gLo)||1);};
+  return '<svg viewBox="0 0 140 16" aria-hidden="true">'+
+    '<line x1="3" y1="8" x2="137" y2="8" stroke="var(--line)"/>'+
+    '<line x1="'+X(lo)+'" y1="8" x2="'+X(hi)+'" y2="8" stroke="'+color+
+    '" stroke-width="4" stroke-linecap="round" opacity="0.35"/>'+
+    '<circle cx="'+X(mu)+'" cy="8" r="4" fill="'+color+'"/></svg>';
+}
+var rowsEl=document.getElementById('rows');
+/* Division + tier only. Split out from visible() because the conference
+   dropdown has to be built from this set: including the conference
+   filter itself would leave exactly one option in the list. */
+function passesScope(t){
+  if(!divFilter[t.division]&&D.divisions.indexOf(t.division)>=0)return false;
+  if(tierActive()){
+    if(t.division!=='NCAA FBS')return false;
+    if(!tierFilter[tierOf(t)])return false;
+  }
+  return true;
+}
+function visible(){
+  return teams.filter(function(t){
+    if(!passesScope(t))return false;
+    if(confFilter&&t.conference!==confFilter)return false;
+    if(query&&t.name.toLowerCase().indexOf(query)<0&&
+       (t.conference||'').toLowerCase().indexOf(query)<0)return false;
+    return true;});
+}
+/* ---------- conference summary ----------
+   Ordered by mean rating. Only out-of-conference games are counted: a
+   league's internal record is 50% by construction, so it says nothing
+   about the league. Honours the division chips (an FBS-only view should
+   not list D3 conferences) but not the conference filter or the search
+   box, which are team-level. */
+var confSecEl=document.getElementById('confsec');
+// Declared here rather than beside renderStandings because
+// renderConfTable reads both and runs first.
+var selConf=null, confRowsWired=false, stRowsWired=false;
+function renderConfTable(){
+  var src=D.conf_summary||[];
+  if(!src.length){confSecEl.style.display='none';return;}
+  // Same scope as the rankings above it, so the two never disagree
+  // about what you are looking at. Conference tiers are derived from a
+  // representative team, since the payload row carries no tier itself.
+  var confTier={};
+  teams.forEach(function(t){
+    if(t.division==='NCAA FBS'&&t.conference&&!(t.conference in confTier))
+      confTier[t.conference]=tierOf(t);});
+  var rows=src.filter(function(c){
+    if(c.division&&D.divisions.indexOf(c.division)>=0&&!divFilter[c.division])
+      return false;
+    if(tierActive()){
+      if(c.division!=='NCAA FBS')return false;
+      if(!tierFilter[confTier[c.name]])return false;
+    }
+    return true;
+  });
+  confSecEl.style.display=rows.length?'':'none';
+  if(!rows.length)return;
+  var scope=D.conf_scope==='played'?'out-of-conference games played'
+                                   :'out-of-conference games scheduled';
+  var g=rows.reduce(function(a,c){return a+c.g;},0);
+  document.getElementById('confhint').textContent =
+    rows.length+' conferences · '+Math.round(g/2)+' '+scope;
+  var f1=function(n){return (n===null||n===undefined)?'—':n.toFixed(1);};
+  var thin=rows.filter(function(c){return c.n<3;}).length;
+  if(thin) document.getElementById('confhint').textContent +=
+    ' · '+thin+' with under 3 teams (check alignment.csv)';
+  // Wired once, on the tbody, so it survives every re-render.
+  if(!confRowsWired){
+    confRowsWired=true;
+    document.getElementById('confrows').addEventListener('click',function(e){
+      var tr=e.target.closest('tr');
+      if(tr&&tr.dataset.conf)pickConference(tr.dataset.conf);});
+  }
+  var withStand=conferencesWithStandings();
+  document.getElementById('confrows').innerHTML=rows.map(function(c){
+    var vs=c.vs;
+    // Only conferences that have projected standings are selectable;
+    // the rest would open an empty panel.
+    var has=withStand.indexOf(c.name)>=0;
+    // A one- or two-team "conference" is nearly always a misspelling in
+    // alignment.csv rather than a league. Its mean rating is just that
+    // team's rating, so it sorts high and reads like a peer. Dim it and
+    // say why instead of dropping the row, which would hide the error.
+    var vsCell = (vs===null||vs===undefined) ? '<td class="num dim">—</td>'
+      : '<td class="num" style="color:'+(vs>0.05?'var(--pos)':vs<-0.05?'var(--neg)':'var(--muted)')+
+        '">'+(vs>0?'+':'')+vs.toFixed(1)+'</td>';
+    return '<tr'+(has?' data-conf="'+esc(c.name)+'"':'')+
+      (c.name===selConf?' class="sel"':'')+
+      ' style="cursor:'+(has?'pointer':'default')+
+      (c.n<3?';opacity:.55':'')+'"'+
+      ' title="'+esc(c.name)+
+      (has?' · click to load its standings':' · no projected standings')+
+      (c.n<3?' · only '+c.n+' team(s) carry this conference name - likely a '+
+             'spelling variant in alignment.csv':'')+
+      (c.talent===null?' · talent composite covers only '+c.talent_n+
+             ' of '+c.n+' teams':'')+'">'+
+      '<td class="cname">'+esc(c.name)+'</td>'+
+      '<td class="num dim">'+c.n+'</td>'+
+      '<td class="num">'+Math.round(c.rating)+'</td>'+
+      '<td class="num'+(c.talent===null?' dim':'')+'">'+f1(c.talent)+'</td>'+
+      '<td class="num dim">'+c.g+'</td>'+
+      '<td class="num">'+(c.g?c.w+'–'+c.l:'—')+'</td>'+
+      '<td class="num dim">'+f1(c.xpre)+'</td>'+
+      '<td class="num dim">'+f1(c.xnow)+'</td>'+
+      vsCell+'</tr>';
+  }).join('');
+}
+function renderTable(){
+  syncConfOptions();
+  renderConfTable();
+  var list=visible().map(function(t){return{t:t,s:stateAt(t,curWeek)};});
+  if(mode==='bcur'&&HASP)list.sort(function(a,b){
+    return (a.t.rank_blend_cur||1e9)-(b.t.rank_blend_cur||1e9);});
+  else if(mode==='bproj'&&HASP)list.sort(function(a,b){
+    return (a.t.rank_blend_proj||1e9)-(b.t.rank_blend_proj||1e9);});
+  else list.sort(function(a,b){return b.s.mu-a.s.mu;});
+  if(!list.length){rowsEl.innerHTML='<tr><td colspan="9" class="empty">No teams match.</td></tr>';return;}
+  var gLo=Infinity,gHi=-Infinity;
+  list.forEach(function(x){gLo=Math.min(gLo,x.s.mu-2*x.s.sigma);
+    gHi=Math.max(gHi,x.s.mu+2*x.s.sigma);});
+  rowsEl.innerHTML=list.map(function(x,i){
+    var t=x.t,s=x.s,cells=[];
+    cells.push('<td class="rk">'+(i+1)+'</td>');
+    cells.push('<td class="tname">'+esc(t.name)+
+      '<small>'+esc(t.conference||'')+'</small></td>');
+    cells.push('<td><span class="divtag" style="background:'+colorOf(t.division)+
+      '">'+esc(t.division)+'</span></td>');
+    cells.push('<td class="num">'+fmt(s.mu)+'</td>');
+    if(D.mode==='offseason'){
+      // The full offseason move: the seven pts_* adjustments PLUS the
+      // talent step (talent change + residual shed), which happens
+      // before them and was previously left out of this column, so a
+      // team could show +1.2 while actually moving -4.
+      var a=(t.adj?t.adj.total:0)+(t.talent?(t.talent.move||0):0);
+      cells.push('<td class="num '+(a>=0?'pos':'neg')+'">'+(a>=0?'+':'')+fmt(a)+' pt</td>');
+    }else if(HASH){
+      var d=s.mu-(t.history&&t.history.length?t.history[0].mu:s.mu);
+      cells.push('<td class="num '+(d>=0?'pos':'neg')+'">'+(d>=0?'+':'')+fmt(d)+'</td>');
+    }
+    cells.push('<td class="range">'+rangeBar(s.mu-2*s.sigma,s.mu,s.mu+2*s.sigma,
+      gLo,gHi,colorOf(t.division))+'</td>');
+    if(D.mode!=='offseason'){
+      var g=(t.games||[]).filter(function(gg){return gg.week<=curWeek;});
+      var w=0,l=0;g.forEach(function(gg){if(gg.result==='W')w++;else if(gg.result==='L')l++;});
+      cells.push('<td class="num">'+w+'\u2013'+l+'</td>');
+    }
+    if(HASP)cells.push('<td class="num" style="color:var(--muted)">'+
+      (t.proj?rec(t.proj.fw,t.proj.fl):'\u2014')+'</td>');
+    return '<tr data-id="'+esc(t.id)+'" class="'+(selected===t.id?'sel':'')+'">'+
+      cells.join('')+'</tr>';}).join('');
+}
+rowsEl.addEventListener('click',function(e){
+  var tr=e.target.closest('tr');if(!tr||!tr.dataset.id)return;
+  selected=tr.dataset.id;renderTable();renderDetail();});
+
+// detail ---------------------------------------------------------------
+function trajectory(t){
+  var pts=(t.history||[]).filter(function(h){return h.week<=curWeek;});
+  if(pts.length<2)return '';
+  var W=430,H=145,P=26,c=colorOf(t.division);
+  var yMin=Infinity,yMax=-Infinity;
+  pts.forEach(function(p){yMin=Math.min(yMin,p.mu-2*p.sigma);
+    yMax=Math.max(yMax,p.mu+2*p.sigma);});
+  var x0=pts[0].week,x1=pts[pts.length-1].week;
+  var X=function(w){return P+(W-2*P)*((w-x0)/((x1-x0)||1));};
+  var Y=function(v){return H-P-(H-2*P)*((v-yMin)/((yMax-yMin)||1));};
+  var band=pts.map(function(p){return X(p.week)+','+Y(p.mu+2*p.sigma);}).join(' ')+' '+
+    pts.slice().reverse().map(function(p){return X(p.week)+','+Y(p.mu-2*p.sigma);}).join(' ');
+  var line=pts.map(function(p,i){return (i?'L':'M')+X(p.week)+','+Y(p.mu);}).join(' ');
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Rating trajectory">'+
+    '<polygon points="'+band+'" fill="'+c+'" opacity="0.14"/>'+
+    '<path d="'+line+'" fill="none" stroke="'+c+'" stroke-width="2.5"/>'+
+    '<text x="'+P+'" y="15" font-size="11" fill="var(--muted)">rating \u00b7 shaded = \u00b12\u03c3</text>'+
+    '<text x="'+X(x0)+'" y="'+(H-7)+'" font-size="10" fill="var(--muted)" text-anchor="middle">'+
+      (x0===0?'Pre':'W'+x0)+'</text>'+
+    '<text x="'+X(x1)+'" y="'+(H-7)+'" font-size="10" fill="var(--muted)" text-anchor="middle">W'+x1+'</text></svg>';
+}
+function barRows(items){
+  var max=1;items.forEach(function(it){max=Math.max(max,Math.abs(it[1]||0));});
+  return items.map(function(it){
+    var v=it[1]||0,w=Math.abs(v)/max*50;
+    return '<div class="barrow"><span style="color:var(--muted)">'+it[0]+'</span>'+
+      '<span class="bartrack"><span class="barmid"></span><span class="barfill" style="'+
+      (v>=0?'left:50%;background:var(--pos)':'right:50%;background:var(--neg)')+
+      ';width:'+w+'%"></span></span>'+
+      '<span class="num" style="font-size:12.5px">'+(v>=0?'+':'')+fmt(v)+'</span></div>';
+  }).join('');
+}
+// The rollover runs before the offseason adjustments, so it needs its
+// own block. The row that used to be labelled "Talent regression" here
+// was wired to t.adj.regress, which is the COACH regression toward the
+// division baseline -- and that is off by default (coach_regress_frac
+// = 0.0), so it read 0.00 for every team while the real talent terms
+// were never in the payload at all.
+function talentBars(t){
+  if(!t.talent)return '';
+  var items=[['Talent change',t.talent.delta],
+             ['Residual shed',t.talent.residual]];
+  var known=items.filter(function(it){return it[1]!==null&&it[1]!==undefined;});
+  var body=known.length?barRows(known)
+    :barRows([['Talent move (net)',t.talent.move]]);
+  var note=t.talent.note?'<div class="barnote">'+esc(t.talent.note)+'</div>':'';
+  return '<div class="bars"><div class="barhead">Rollover · net '+
+    (t.talent.move>=0?'+':'')+fmt(t.talent.move)+'</div>'+body+note+'</div>';
+}
+function adjBars(t){
+  if(!t.adj)return '';
+  return '<div class="bars"><div class="barhead">Offseason adjustments · net '+
+    (function(){var v=(t.adj.total||0)+(t.talent?(t.talent.move||0):0);
+      return (v>=0?'+':'')+fmt(v);})()+'</div>'+
+    barRows([['Returning prod',t.adj.rp],['Coach transition',t.adj.coach],
+             ['Coach quality',t.adj.quality||0],
+             ['Coach regression',t.adj.regress||0],
+             ['Portal net',t.adj.portal],['Departures',t.adj.dep],
+             ['Manual',t.adj.manual]])+'</div>';
+}
+function renderDetail(){
+  var el=document.getElementById('detail');
+  if(!selected){el.innerHTML='<div class="empty">Select a team to see details.</div>';return;}
+  var t=byId[selected],s=stateAt(t,curWeek);
+  var games=(t.games||[]).filter(function(g){return g.week<=curWeek;});
+  var w=0,l=0;games.forEach(function(g){if(g.result==='W')w++;else if(g.result==='L')l++;});
+  var stats='<div><b>'+fmt(s.mu)+'</b><span>Competitiveness</span></div>'+
+    '<div><b>\u00b1'+fmt(2*s.sigma)+'</b><span>Range (2\u03c3)</span></div>';
+  // Two different "before" numbers, and conflating them is what hid the
+  // talent step: `ending` is where last season actually finished, while
+  // `prev` is already post-rollover. Label both.
+  if(D.mode==='offseason'&&t.ending!==undefined)
+    stats+='<div><b>'+fmt(t.ending)+'</b><span>Last season end</span></div>';
+  if(D.mode==='offseason'&&t.prev!==undefined)
+    stats+='<div><b>'+fmt(t.prev)+'</b><span>After talent</span></div>';
+  if(D.mode!=='offseason')stats+='<div><b>'+w+'\u2013'+l+'</b><span>Record</span></div>';
+  // Two projected records, and they legitimately differ. "Proj final"
+  // banks a whole win outside the coin-flip band and half a win inside
+  // it; "Expected" is the sum of the win percentages listed below and
+  // is the one that reconciles with them. A team can show 9-3 while
+  // four of its games sit under 50%.
+  if(t.proj)stats+='<div><b>'+rec(t.proj.fw,t.proj.fl)+'</b><span>Proj final ('+
+    t.proj.gl+' left)</span></div>';
+  if(t.proj&&t.proj.ew!==undefined)
+    stats+='<div><b>'+t.proj.ew.toFixed(1)+'–'+t.proj.el.toFixed(1)+
+      '</b><span>Expected (sum of win %)</span></div>';
+  if(t.proj)stats+='<div><b>'+rec(t.proj.cfw,t.proj.cfl)+
+    '</b><span>Proj conf</span></div>';
+  var log='';
+  if(games.length)log='<div class="log"><table>'+games.slice().reverse().map(function(g){
+    var o=byId[g.opp];
+    return '<tr><td>W'+g.week+'</td><td>'+(g.loc==='A'?'at ':g.loc==='N'?'vs\u00b7N ':'vs ')+
+      esc(o?o.name:g.opp)+'</td><td class="res-'+g.result+'">'+g.result+' '+g.pf+'\u2013'+g.pa+
+      '</td><td class="num" style="color:var(--muted)">\u2192 '+fmt(g.mu_after)+'</td></tr>';
+  }).join('')+'</table></div>';
+  var up='';
+  if(t.upcoming&&t.upcoming.length)up='<div class="log"><table>'+
+    t.upcoming.map(function(g){var o=byId[g.opp];
+      return '<tr><td>W'+g.week+'</td><td>'+(g.loc==='A'?'at ':g.loc==='N'?'vs\u00b7N ':'vs ')+
+        esc(o?o.name:g.opp)+'</td><td class="num" style="color:'+
+        (g.line>=0?'var(--pos)':'var(--neg)')+'">'+(g.line>=0?'+':'')+fmt(g.line)+
+        '</td><td class="num" style="color:var(--muted)">'+Math.round(g.wp*100)+'% win</td>'+
+        // What this game contributes to "Proj final". A 0.5 here beside
+        // a sub-50% win chance is the band rule, not an error.
+        '<td class="num" style="color:'+(g.cr===undefined?'var(--muted)'
+          :g.cr===1?'var(--pos)':g.cr===0?'var(--neg)':'var(--gold)')+'">'+
+        (g.cr===undefined?'':g.cr===0.5?'½':g.cr)+'</td></tr>';
+    }).join('')+'</table></div>';
+  el.innerHTML='<div class="dhead"><h3>'+CFB.teamLink(t.name, D.year)+'</h3>'+
+    '<span class="divtag" style="background:'+colorOf(t.division)+'">'+esc(t.division)+'</span>'+
+    '<span style="color:var(--muted)">'+esc(t.conference||'')+'</span></div>'+
+    '<div class="dstats">'+stats+'</div>'+trajectory(t)+talentBars(t)+adjBars(t)+
+    (up?'<div style="margin-top:12px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">Remaining schedule \u00b7 projected line</div>'+up:'')+
+    (log?'<div style="margin-top:12px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">Results</div>'+log:'');
+}
+
+// standings ------------------------------------------------------------
+/* The conference table drives this panel the way the rankings drive
+   team detail: pick a row, the standings below it change. The old
+   dropdown is gone -- with the two tables side by side it was a second
+   control for something the table itself already says. */
+function conferencesWithStandings(){
+  var out=[];(D.standings||[]).forEach(function(s){
+    if(out.indexOf(s.conf)<0)out.push(s.conf);});
+  return out;
+}
+function pickConference(c){
+  selConf=c;renderConfTable();renderStandings();
+}
+function renderStandings(){
+  if(!D.standings||!D.standings.length)return;
+  var have=conferencesWithStandings();
+  if(!have.length)return;
+  // Default to the strongest conference in the table above, not the
+  // alphabetically first -- which was landing on "Alantic 10
+  // conference", a one-team misspelling.
+  if(!selConf||have.indexOf(selConf)<0){
+    var best=(D.conf_summary||[]).filter(function(c){
+      return have.indexOf(c.name)>=0&&c.n>=3;})[0];
+    selConf=best?best.name:have.slice().sort()[0];
+  }
+  document.getElementById('standsec').style.display='';
+  document.getElementById('standhint').textContent=selConf+' · projected';
+  if(!stRowsWired){
+    stRowsWired=true;
+    document.getElementById('strows').addEventListener('click',function(e){
+      var tr=e.target.closest('tr');if(!tr||!tr.dataset.id)return;
+      selected=tr.dataset.id;renderTable();renderDetail();});
+  }
+  document.getElementById('strows').innerHTML=D.standings
+    .filter(function(s){return s.conf===selConf;})
+    .map(function(s){var t=byId[s.id];
+      return '<tr data-id="'+esc(s.id)+'"><td class="rk">'+s.rk+'</td>'+
+        '<td class="tname">'+esc(t?t.name:s.id)+'</td>'+
+        '<td class="num">'+rec(s.w,s.l)+'</td>'+
+        '<td class="num" style="color:var(--muted)">'+rec(s.ow,s.ol)+'</td>'+
+        '<td class="num">'+fmt(s.rating)+'</td></tr>';}).join('');
+}
+
+// projector ------------------------------------------------------------
+var selH=document.getElementById('selHome'),selA=document.getElementById('selAway'),
+    neutral=document.getElementById('neutral');
+var opts=teams.slice().sort(function(a,b){return a.name.localeCompare(b.name);})
+  .map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+
+    ' ('+esc(t.division)+')</option>';}).join('');
+selH.innerHTML=opts;selA.innerHTML=opts;
+selH.value=teams[0].id;selA.value=teams[1]?teams[1].id:teams[0].id;
+function renderProj(){
+  var tH=byId[selH.value],tA=byId[selA.value];
+  if(!tH||!tA||tH.id===tA.id){
+    document.getElementById('vSpread').textContent='Pick two different teams';
+    document.getElementById('vSub').textContent='';
+    document.getElementById('wpbar').innerHTML='';
+    document.getElementById('curves').innerHTML='';return;}
+  var h=stateAt(tH,curWeek),a=stateAt(tA,curWeek);
+  var margin=(h.mu-a.mu)/K;if(!neutral.checked)margin+=HFA;
+  var sd=Math.sqrt((h.sigma*h.sigma+a.sigma*a.sigma)/(K*K)+SIGM*SIGM);
+  var wpH=cdf(margin/sd);
+  var fav=margin>=0?tH:tA,dog=margin>=0?tA:tH;
+  document.getElementById('vSpread').textContent=esc(fav.name)+' \u2212'+fmt(Math.abs(margin));
+  document.getElementById('vSub').textContent='Projected margin over '+dog.name+
+    ' \u00b7 \u03c3 \u2248 '+fmt(sd)+' pts'+(neutral.checked?' \u00b7 neutral':'');
+  var wH=Math.round(wpH*100),cH=colorOf(tH.division),cA=colorOf(tA.division);
+  document.getElementById('wpbar').innerHTML=
+    '<div style="width:'+wH+'%;background:'+cH+'">'+esc(tH.name)+' '+wH+'%</div>'+
+    '<div class="away" style="width:'+(100-wH)+'%;background:'+cA+'">'+
+      esc(tA.name)+' '+(100-wH)+'%</div>';
+  var W=460,H=108,P=10;
+  var lo=Math.min(h.mu-3*h.sigma,a.mu-3*a.sigma),hi=Math.max(h.mu+3*h.sigma,a.mu+3*a.sigma);
+  var X=function(v){return P+(W-2*P)*(v-lo)/((hi-lo)||1);};
+  var curve=function(m,sg,c){var d='';
+    for(var i=0;i<=110;i++){var v=lo+(hi-lo)*i/110;
+      var y=H-14-(H-34)*Math.exp(-0.5*Math.pow((v-m)/sg,2));
+      d+=(i?'L':'M')+X(v).toFixed(1)+','+y.toFixed(1);}
+    return '<path d="'+d+'" fill="none" stroke="'+c+'" stroke-width="2.5"/>'+
+      '<line x1="'+X(m)+'" y1="'+(H-14)+'" x2="'+X(m)+'" y2="16" stroke="'+c+
+      '" stroke-dasharray="3 3" opacity="0.6"/>';};
+  document.getElementById('curves').innerHTML=
+    '<line x1="'+P+'" y1="'+(H-14)+'" x2="'+(W-P)+'" y2="'+(H-14)+
+    '" stroke="var(--line-strong)"/>'+curve(h.mu,h.sigma,cH)+curve(a.mu,a.sigma,cA)+
+    '<text x="'+P+'" y="12" font-size="11" fill="var(--muted)">Where each team\u2019s true level likely sits</text>';
+}
+[selH,selA,neutral].forEach(function(el){el.addEventListener('change',renderProj);});
+
+function renderAll(){renderTable();renderDetail();renderProj();renderStandings();}
+document.getElementById('meta').textContent='Generated '+D.generated+' \u00b7 '+
+  teams.length+' teams \u00b7 '+D.divisions.join(' / ')+' \u00b7 '+K+
+  ' rating pts per scoreboard pt, margin \u03c3 '+SIGM+', HFA '+HFA;
+renderAll();
+})();
+
+}
+
+CFB.bootOnce({
+  active: 'offseason', view: 'offseason',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

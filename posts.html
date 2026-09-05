@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Posts &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/cfb.css">
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="lede">
+  <h1>Posts</h1>
+  <p>Notes, write-ups and things worth explaining at more length than a dashboard allows.</p>
+</div>
+
+<div class="postlist" id="list"><div class="loading">Loading&hellip;</div></div>
+
+<footer><div id="meta"></div></footer>
+
+<script src="assets/cfb.js"></script>
+<script>
+CFB.renderNav('posts');
+CFB.renderFooter();
+CFB.renderRail();
+fetch(CFB.root + 'data/posts/index.json')
+  .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(d){
+    var host = document.getElementById('list');
+    if(!d.posts || !d.posts.length){
+      host.innerHTML = '<div class="empty">No posts yet. Drop a .md file in '
+        + '<code>site/posts/</code> and rebuild.</div>';
+      return;
+    }
+    host.innerHTML = d.posts.map(function(p){
+      return '<article><h2><a href="views/post.html?p=' + encodeURIComponent(p.slug)
+        + '">' + CFB.esc(p.title) + '</a></h2>'
+        + '<time>' + CFB.esc(p.date) + '</time>'
+        + (p.summary ? '<p>' + CFB.esc(p.summary) + '</p>' : '')
+        + '</article>';
+    }).join('');
+    document.getElementById('meta').textContent =
+      d.posts.length + ' post' + (d.posts.length===1?'':'s') + '.';
+  })
+  .catch(function(e){ CFB.fail('list', e); });
+</script>
+</body>
+</html>

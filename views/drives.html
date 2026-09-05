@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drive Chart &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+/* Every class prefixed `dc-`. Unprefixed `.note` and `.lede` collided
+   with cfb.css once and the collision was invisible until a rebuild
+   moved the stylesheet order. */
+
+/* **These are NOT in `:root`, and that is the whole point.**
+   `tools/convert_views.py` deletes the first `:root{...}` block of every
+   template on the way to the published shell -- cfb.css owns the site
+   palette. The chart tokens lived there, so the built page referenced
+   `var(--team-a)` five times with nothing defining it: every line and
+   gridline drew in `none` and the figures came out blank while the
+   local template looked perfect. Scoped to the figure block, they
+   survive the transform.
+
+   The two hues are deliberately NOT the green/red above: those already
+   mean "gained / lost expected points" here, and a colour cannot carry
+   identity and valence at once. Slots 1 and 2 of the categorical
+   palette, validated against this surface -- worst pair separation
+   dE 24.7 under protanopia, 33.6 to normal vision. */
+.dc-figs,.dc-epbox{--team-a:#2a78d6;--team-b:#eb6834;
+  --grid:#E1E6DE;--axis:#C3CCC1}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+.dc-badge{font-size:12.5px;color:#9FB3A4;letter-spacing:.04em}
+.dc-ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.dc-ctl select,.dc-ctl input{padding:7px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC;max-width:280px}
+main{max-width:1180px;margin:0 auto;padding:20px}
+section{background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:16px 18px;margin-bottom:18px}
+h2{font-size:17px;margin-bottom:4px}
+.dc-hint{font-size:12.5px;color:var(--muted);text-transform:none;
+  font-family:'Barlow',sans-serif;letter-spacing:0;font-weight:400}
+.dc-dim{color:var(--muted)}
+.dc-note{font-size:13px;color:var(--muted);line-height:1.65}
+.dc-prov{max-width:1180px;margin:0 auto 14px;padding:9px 14px;
+  border-left:3px solid var(--gold);background:#FBF6E7;color:var(--ink);
+  border-radius:0 6px 6px 0;font-size:12.5px}
+
+/* --- the scoreboard box ------------------------------------------- */
+.dc-box{border-collapse:collapse;font-size:14px;margin:2px 0 4px}
+.dc-box th,.dc-box td{padding:4px 12px;text-align:right;
+  border-bottom:1px solid var(--line)}
+.dc-box th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--muted);font-weight:600}
+.dc-box td:first-child,.dc-box th:first-child{text-align:left;
+  font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;
+  text-transform:uppercase;min-width:150px}
+.dc-box td:last-child{font-weight:700;font-size:16px}
+.dc-box tr:last-child td{border-bottom:none}
+.dc-win td{color:var(--field)}
+
+/* --- the expected-points box -------------------------------------- */
+.dc-epbox{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.dc-epbox h3{font-family:'Barlow Condensed',sans-serif;font-size:14px;
+  text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+.dc-epbox .dc-note{margin:2px 0 8px;max-width:78ch}
+.dc-ep td:first-child,.dc-ep th:first-child{min-width:130px}
+.dc-ep td.dc-role{text-align:left;font-size:11px;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--muted);font-family:'Barlow',sans-serif;
+  font-weight:600;min-width:64px}
+.dc-ep td:last-child{font-weight:700}
+.dc-ep tr.dc-eptop td{border-bottom:none}
+.dc-ep td.dc-penrole{color:var(--gold);font-weight:700}
+.dc-ep td:first-child{vertical-align:middle}
+
+/* --- charts ------------------------------------------------------- */
+.dc-figs{display:grid;gap:14px}
+.dc-fig{position:relative}
+.dc-fig h3{font-family:'Barlow Condensed',sans-serif;font-size:14px;
+  text-transform:uppercase;letter-spacing:.03em;font-weight:600;
+  margin-bottom:1px}
+.dc-fig p{font-size:12px;color:var(--muted);margin-bottom:5px;max-width:78ch}
+.dc-fig h4{font-family:'Barlow Condensed',sans-serif;font-size:13px;
+  text-transform:uppercase;letter-spacing:.03em;font-weight:700;
+  color:var(--muted);margin-bottom:1px}
+.dc-fig svg{display:block;width:100%;height:auto;overflow:visible}
+.dc-key{display:flex;gap:14px;font-size:12px;color:var(--muted);
+  margin-bottom:4px;flex-wrap:wrap}
+.dc-key i{display:inline-block;width:11px;height:3px;border-radius:2px;
+  vertical-align:middle;margin-right:5px}
+.dc-tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
+  background:var(--ink);color:#EDF3EC;font-size:12px;line-height:1.5;
+  padding:6px 9px;border-radius:6px;white-space:nowrap;z-index:5;
+  transform:translate(-50%,-100%)}
+.dc-tip b{font-family:'Barlow Condensed',sans-serif;font-size:13px}
+
+/* --- drive cards -------------------------------------------------- */
+.dc-drive{border:1px solid var(--line);border-radius:8px;background:#fff;
+  padding:10px 12px;margin-bottom:8px}
+.dc-top{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.dc-team{font-family:'Barlow Condensed',sans-serif;font-size:17px;
+  font-weight:700;text-transform:uppercase}
+.dc-pill{display:inline-block;padding:1px 7px;border-radius:9px;
+  font-size:11.5px;background:var(--line);color:var(--muted);white-space:nowrap}
+.dc-pill.dc-sc{background:#E3EFE6;color:var(--field);font-weight:600}
+.dc-run{font-size:12.5px;color:var(--muted);font-weight:600;
+  letter-spacing:.02em}
+.dc-rp{font-size:12px;color:var(--muted);white-space:nowrap;
+  letter-spacing:.01em}
+.dc-rp b{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.dc-rp span{opacity:.5;margin:0 2px}
+.dc-nums{margin-left:auto;display:flex;gap:14px;text-align:right}
+.dc-num{min-width:64px}
+.dc-num i{display:block;font-style:normal;font-size:10px;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.dc-num b{font-size:17px;font-weight:600;
+  font-family:'Barlow Condensed',sans-serif}
+.dc-up{color:var(--pos)}.dc-dn{color:var(--neg)}
+.dc-sw{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.dc-sw div{font-size:12.5px;display:flex;gap:8px;padding:2px 0}
+.dc-sw span.k{width:56px;flex:none;font-weight:600}
+.dc-sw span.e{width:52px;flex:none;text-align:right}
+.dc-sw span.t{color:var(--muted)}
+.dc-bar{display:inline-block;width:70px;height:8px;background:var(--line);
+  border-radius:4px;overflow:hidden;vertical-align:middle;position:relative}
+.dc-bar i{position:absolute;top:0;height:100%}
+.dc-msg{padding:26px;text-align:center;color:var(--muted)}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 34px;
+  font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Drive <span>Chart</span></h1>
+  <span class="dc-badge" id="dc-badge"></span>
+  <div class="dc-ctl">
+    <select id="dc-div"></select>
+    <select id="dc-week"></select>
+    <select id="dc-game"></select>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2>What the two value columns are
+        <span class="dc-hint">they disagree, and that is the point</span></h2>
+    <p class="dc-note" id="dc-what"></p>
+    <p class="dc-note" style="margin-top:8px"><b>Downs / clock</b> is one
+      result, not two.<button class="cfb-i" type="button"
+        data-more="dc-i-downs" aria-expanded="false"
+        aria-label="More about this">i</button>
+      <span class="cfb-more" id="dc-i-downs" hidden>The play files do not
+      say whether a drive ended on a fourth-down stop or because the half
+      ran out, so the label names both rather than choosing.</span></p>
+  </section>
+
+  <p class="dc-note dc-prov" id="dc-prov" hidden></p>
+
+  <section id="dc-scorewrap" hidden>
+    <h2 id="dc-title2">Score</h2>
+    <div id="dc-score"></div>
+  </section>
+
+  <section id="dc-chartwrap" hidden>
+    <h2>How the game moved
+        <span class="dc-hint">three quantities, three panels, one clock</span></h2>
+    <p class="dc-note" style="margin-bottom:10px">Three quantities, never
+      sharing an axis.<button class="cfb-i" type="button"
+        data-more="dc-i-axis" aria-expanded="false"
+        aria-label="More about this">i</button>
+      <span class="cfb-more" id="dc-i-axis" hidden>Expected points and win
+      probability are not on the same scale, so putting them on one axis
+      would invent an alignment the data does not have. The drive list
+      below is this figure&rsquo;s table view &mdash; every value plotted
+      is printed there.</span></p>
+    <div class="dc-figs" id="dc-figs"></div>
+  </section>
+
+  <section>
+    <h2 id="dc-title">Pick a game</h2>
+    <div id="dc-out"><div class="dc-msg">Choose a division, week and
+      game above.</div></div>
+  </section>
+</main>
+<footer id="dc-meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/drive_chart.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+var CACHE = {};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function f2(v){return (v===null||v===undefined)?'—':(v>0?'+':'')+v.toFixed(2);}
+function f3(v){return (v===null||v===undefined)?'—':(v>0?'+':'')+v.toFixed(3);}
+function mmss(s){
+  if(s===null||s===undefined) return '—';
+  var m=Math.floor(s/60), r=Math.round(s%60);
+  return m+':'+(r<10?'0':'')+r;
+}
+/* Field position is stored as yards from the offence's own goal, so 78
+   is "the opponent's 22". Printing the raw number would read as a team
+   being 78 yards from its own end zone, which is true and not how
+   anybody says it. */
+function spot(p){
+  if(p===null||p===undefined) return '—';
+  return p<=50 ? ('own '+p) : ('opp '+(100-p));
+}
+function el(id){return document.getElementById(id);}
+/* Short lead visible, elaboration behind an information button.
+   `CFB.info` is the shared implementation in cfb.js; this falls back to
+   a local copy of the same markup so the template still works opened
+   on its own, outside the built site. */
+var __iN = 0;
+function info(lead, more){
+  if(window.CFB && CFB.info) return CFB.info(lead, more);
+  var id = 'dc-i-r' + (++__iN);
+  return lead + '<button class="cfb-i" type="button" data-more="'+id+'" '
+    + 'aria-expanded="false" aria-label="More about this">i</button>'
+    + '<span class="cfb-more" id="'+id+'" hidden>' + more + '</span>';
+}
+/* Zero is neither a gain nor a loss. Colouring an exact 0.000 green
+   told a reader that a kneel-down with the game already decided was a
+   good drive; it was nothing at all, which is the correct answer. */
+function cls(v){return (v===null||v===undefined||v===0)?'':(v>0?'dc-up':'dc-dn');}
+/* The stored results are the model's own tokens. `downs_or_end` is one
+   bucket on purpose -- the play files do not separate a fourth-down
+   stop from a drive the clock ended -- so it is labelled as the two
+   things it actually is rather than dressed up as one. */
+var RESULT = {td:'touchdown', fg:'field goal', punt:'punt',
+  turnover:'turnover', turnover_td:'defensive TD', fg_miss:'missed FG',
+  safety:'safety', downs_or_end:'downs / clock'};
+function res(r){return RESULT[r] || String(r).replace(/_/g,' ');}
+/* The swing rows no longer carry play narration -- it was 41% of the
+   published bytes and every fact in it except one is already a column.
+   The exception is a penalty, which has no play type of its own, so the
+   builder keeps a short tag for that and for the other markers a reader
+   would otherwise have to infer from an EPA. */
+function desc(p){
+  var t = String(p.type||'').replace(/_/g,' ');
+  var y = '';
+  if(p.yds!==null && p.yds!==undefined){
+    var n = Math.round(p.yds);
+    y = ', ' + (n>0?'+':'') + n + ' yd' + (Math.abs(n)===1?'':'s');
+  }
+  return t + y;
+}
+
+/* ------------------------------------------------------------------ *
+ * Selection, and the deep link
+ *
+ * The hash is `#<div>/<week>/<gameid>`, which is what the scoreboard
+ * and the team page link to. It is read on load and rewritten whenever
+ * the reader changes a dropdown, so the browser's back button works
+ * and a game can be sent to somebody.
+ * ------------------------------------------------------------------ */
+function readHash(){
+  var h = (location.hash||'').replace(/^#/,'').split('/');
+  return h.length>=3 ? {div:h[0], week:h[1], id:h[2]} : null;
+}
+var SETTING = false;
+function writeHash(){
+  if(SETTING) return;
+  var h = '#'+el('dc-div').value+'/'+el('dc-week').value+'/'+el('dc-game').value;
+  if(location.hash !== h) history.replaceState(null,'',h);
+}
+
+(function init(){
+  /* The payload ships one long paragraph. The first sentence is the
+     lead; the rest folds away. Split on the first sentence end so the
+     builder keeps owning the wording. */
+  var what = String(D.what || ''), cut = what.indexOf('. ');
+  el('dc-what').innerHTML = (cut > 0 && what.length > 160)
+    ? info(esc(what.slice(0, cut + 1)), esc(what.slice(cut + 2)))
+    : esc(what);
+  el('dc-meta').textContent = 'generated '+(D.generated||'');
+  el('dc-badge').textContent = D.year+' · '+(D.n_games||0).toLocaleString()
+    +' games';
+  fill('dc-div', (D.divisions||[]).map(function(d){return [d, d.toUpperCase()];}));
+  el('dc-div').addEventListener('change', weeks);
+  el('dc-week').addEventListener('change', gamesFor);
+  el('dc-game').addEventListener('change', show);
+  window.addEventListener('hashchange', function(){ apply(readHash()); });
+  var want = readHash();
+  if(want) apply(want); else weeks();
+})();
+
+function apply(want){
+  if(!want) return;
+  SETTING = true;
+  el('dc-div').value = want.div;
+  var ws = (D.weeks||{})[want.div] || [];
+  fill('dc-week', ws.map(function(w){return [w, 'Week '+w];}));
+  el('dc-week').value = want.week;
+  listGames();
+  el('dc-game').value = want.id;
+  SETTING = false;
+  show();
+}
+
+function fill(id, pairs){
+  var e = el(id); e.innerHTML='';
+  pairs.forEach(function(p){
+    var o=document.createElement('option'); o.value=p[0]; o.textContent=p[1];
+    e.appendChild(o);
+  });
+}
+function weeks(){
+  var d = el('dc-div').value;
+  var ws = (D.weeks||{})[d] || [];
+  fill('dc-week', ws.map(function(w){return [w, 'Week '+w];}));
+  gamesFor();
+}
+function listGames(){
+  var d = el('dc-div').value, w = el('dc-week').value;
+  var list = (D.games||[]).filter(function(g){
+    return g.div===d && String(g.week)===String(w); });
+  list.sort(function(a,b){return a.teams[0].localeCompare(b.teams[0]);});
+  fill('dc-game', list.map(function(g){
+    return [g.id, g.teams.join('  v  ')]; }));
+}
+function gamesFor(){ listGames(); show(); }
+
+/* One week at a time. A whole division-season is 17 MB against ~1 MB
+   for the largest payload this site otherwise carries, so the week is
+   fetched when it is asked for and kept. */
+function show(){
+  var d = el('dc-div').value, w = el('dc-week').value, id = el('dc-game').value;
+  writeHash();
+  if(!id){ el('dc-out').innerHTML='<div class="dc-msg">No games.</div>';
+           el('dc-scorewrap').hidden = el('dc-chartwrap').hidden = true; return; }
+  var key = d+'_w'+w;
+  if(CACHE[key]) return draw(CACHE[key], id);
+  el('dc-out').innerHTML='<div class="dc-msg">Loading week '+esc(w)+'…</div>';
+  fetch(D.base + key + '.json').then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(j){ CACHE[key]=j; draw(j, id); })
+    .catch(function(e){
+      el('dc-out').innerHTML='<div class="dc-msg">Could not load week '
+        +esc(w)+' — '+esc(e.message)+'</div>';
+    });
+}
+
+/* ------------------------------------------------------------------ *
+ * The scoreboard box
+ * ------------------------------------------------------------------ */
+function sides(g){
+  // `home` is absent when the play file never showed an offensive
+  // touchdown to vote on -- 4-8% of games by division.
+  if(!g.home) return null;
+  var away = (g.teams||[]).filter(function(t){return t!==g.home;})[0];
+  return away ? {home:g.home, away:away} : null;
+}
+function scoreBox(g){
+  var s = sides(g);
+  if(!s || !g.final) return '';
+  var qs = g.box || [];
+  var head = '<tr><th></th>' + qs.map(function(q){
+      return '<th>'+esc(q[0]==='OT'?'OT':('Q'+q[0]))+'</th>'; }).join('')
+    + '<th>Final</th></tr>';
+  function row(name, i, win){
+    return '<tr class="'+(win?'dc-win':'')+'"><td>'+esc(name)+'</td>'
+      + qs.map(function(q){return '<td>'+q[i+1]+'</td>';}).join('')
+      + '<td>'+g.final[i]+'</td></tr>';
+  }
+  var hw = g.final[0] > g.final[1], aw = g.final[1] > g.final[0];
+  var note = qs.length ? '' :
+    '<p class="dc-note" style="margin-top:6px">No quarter-by-quarter box '
+    + 'for this game: the source’s running score reverses at some '
+    + 'point &mdash; a score undone on review &mdash; so the quarters do '
+    + 'not add to the final. The final and the drive-by-drive score are '
+    + 'unaffected.</p>';
+  return '<table class="dc-box">'+head+row(s.away,1,aw)+row(s.home,0,hw)
+    +'</table>'+note;
+}
+
+/* The expected-points box, under the real one.
+ *
+ * **This is not "the score they should have had", and it is labelled
+ * so.** The obvious construction -- expected points at each drive's
+ * start plus the drive's EPA -- correlates +0.975 with the actual
+ * score and sits a systematic **7 points low**, because a drive's EPA
+ * prices the *handover*: a punt's value includes the field position it
+ * hands away. That makes it a drive value, not a score, and no
+ * rearrangement of these columns produces one.
+ *
+ * What it is: points gained or lost against what an average drive from
+ * the same field position is worth. Zero is par, not zero points.
+ */
+function epBox(g, S, hasPen){
+  var s = sides(g);
+  if(!s) return '';
+  var E = epByQuarter(g, S, hasPen);
+  if(!E.qs.length) return '';
+  function num(v){
+    var c = v > 0.05 ? 'dc-up' : (v < -0.05 ? 'dc-dn' : 'dc-dim');
+    return '<td class="'+c+'">'+(v>0?'+':'')+v.toFixed(1)+'</td>';
+  }
+  function rows(team){
+    var a = E.acc[team] || {};
+    var to = 0, td = 0, tp = 0;
+    var ro = '', rd = '', rp = '';
+    E.qs.forEach(function(q){
+      var c = a[q] || {off:0, def:0, pen:0};
+      to += c.off; td += c.def; tp += c.pen;
+      ro += num(c.off); rd += num(c.def); rp += num(c.pen);
+    });
+    /* **No penalty row unless the season was built with the split.**
+       `pen` is stored only when non-zero, so a missing value means
+       "no flags here" in a new payload and "never measured" in an
+       older one. Drawing 0.0 for the second would read as a game
+       without a single penalty, which is a claim, not a gap. */
+    var span = hasPen ? 3 : 2;
+    return '<tr class="dc-eptop"><td rowspan="'+span+'">'+esc(team)+'</td>'
+      + '<td class="dc-role">offence</td>'+ro+num(to)+'</tr>'
+      + '<tr'+(hasPen?' class="dc-eptop"':'')+'>'
+      + '<td class="dc-role">defence</td>'+rd+num(td)+'</tr>'
+      + (hasPen
+         ? ('<tr><td class="dc-role dc-penrole">penalty</td>'+rp+num(tp)+'</tr>')
+         : '');
+  }
+  var head = '<tr><th></th><th></th>' + E.qs.map(function(q){
+      return '<th>'+esc(q==='OT'?'OT':('Q'+q))+'</th>'; }).join('')
+    + '<th>Game</th></tr>';
+  return '<div class="dc-epbox"><h3>Expected points added</h3>'
+    /* **The qualifier stays on the page.** "Zero is par" and "not a
+       score" are what stop a reader taking +14.7 for points scored;
+       folding them away would leave a number meaning something it does
+       not mean. Only the mechanism behind them collapses. */
+    + '<p class="dc-note">' + info(
+        'Against what an average drive from the same field position is '
+        + 'worth &mdash; <b>zero is par, not zero points</b>, and this '
+        + 'is <b>not a predicted score</b>.'
+        + (hasPen
+           ? (' <b>Offence</b> and <b>defence</b> are what each unit did '
+              + 'with the football; <b>penalty</b> is the part that came '
+              + 'on a play where an accepted flag moved the ball.')
+           : ''),
+        'The three rows add to what the first two used to be, so '
+        + 'nothing is re-baselined &mdash; the penalty share is '
+        + 'separated, not removed. It is charged to the team it '
+        + 'happened to on both sides: an offence flagged for holding '
+        + 'carries it, and so does a defence whose opponent was '
+        + 'flagged, which is the credit that unit did not earn. A '
+        + 'declined flag is football and stays in the earned rows. '
+        + 'Note that a flag is not always one-sided &mdash; holding is '
+        + 'often a rusher beating a blocker &mdash; so this separates '
+        + 'the two rather than deciding between them. '
+        + 'A defence earns the mirror of what it takes off the offence '
+        + 'it faces, so a defensive touchdown lands here as about +7 '
+        + 'for the defence. It is not a score because a drive&rsquo;s '
+        + 'EPA prices the handover a punt gives away, which makes it a '
+        + 'drive value rather than points.') + '</p>'
+    + '<table class="dc-box dc-ep">'+head
+    + rows(s.away)+rows(s.home)+'</table></div>';
+}
+
+/* ------------------------------------------------------------------ *
+ * The figures
+ *
+ * Three quantities, three panels. **They never share a y axis** -- win
+ * probability runs 0-1 and expected points runs in the tens, and
+ * putting them on one scale would invent an alignment the data does
+ * not have. Leverage is a probability like win probability but is a
+ * per-drive *level* rather than something that accumulates, so it gets
+ * its own strip instead of a line.
+ *
+ * The x axis is drive order, not the clock: the clock is missing on a
+ * large share of snaps in some divisions (see PLAY_WP.md) and drive
+ * order is present in every file. Quarter boundaries are marked so the
+ * time context is not lost.
+ * ------------------------------------------------------------------ */
+var W = 900, PADL = 46, PADR = 58;
+
+function series(g){
+  var s = sides(g);
+  // The reference team for win probability: the home side when it is
+  // known, else simply the first team named. `wp0` is stored for
+  // whoever has the ball, so it is flipped when the other side does.
+  var ref = s ? s.home : (g.teams||[])[0];
+  var other = (g.teams||[]).filter(function(t){return t!==ref;})[0] || '';
+  /* **Offence and defence are the same number, mirrored.** A drive is
+     one team's offence and the other's defence, and EPA is signed for
+     whoever has the ball -- so a drive that costs its offence 2.1
+     expected points is worth +2.1 to the defence that forced it. There
+     is nothing to recompute and nothing new to store; the split is a
+     sign flip over the drives the team did not have the ball on.
+
+     That is what makes "did the defence outscore the offence?"
+     answerable: a defensive touchdown is stored as roughly -6.97 for
+     the offence that threw it, which is +6.97 to the defence. */
+  var pts = [], lev = [], any = false;
+  var cum = {}; cum[ref] = {off:0, def:0}; cum[other] = {off:0, def:0};
+  var oa = [], da = [], ob = [], db = [];
+  (g.drives||[]).forEach(function(d, i){
+    var w = null;
+    if(d.wp0!==null && d.wp0!==undefined){
+      w = (d.off===ref) ? d.wp0 : 1-d.wp0; any = true;
+    }
+    pts.push({i:i, wp:w, d:d});
+    lev.push(d.lev===null||d.lev===undefined?null:d.lev);
+    var e = d.epa||0, on = (d.off===ref) ? ref : other,
+        off_ = (on===ref) ? other : ref;
+    if(cum[on]) cum[on].off += e;
+    if(cum[off_]) cum[off_].def -= e;
+    oa.push(cum[ref].off); da.push(cum[ref].def);
+    ob.push(cum[other].off); db.push(cum[other].def);
+  });
+  var ea = oa, eb = ob;
+  /* **The last drive has to resolve.** Every stored `wp0` is the state
+     at a drive's *start*, so a line drawn from them alone stops one
+     drive early: Arkansas St. beat Texas St. 31-30 and the chart ended
+     at 49%, which reads as a loss. The closing point is the last drive
+     that carries both a start and a change -- `wp0 + wpa` is where the
+     game actually finished -- oriented to the same team as the rest. */
+  var end = null;
+  for(var i=(g.drives||[]).length-1;i>=0;i--){
+    var d = g.drives[i];
+    if(d.wp0===null||d.wp0===undefined||d.wpa===null||d.wpa===undefined) continue;
+    var v = d.wp0 + d.wpa;
+    end = Math.max(0, Math.min(1, (d.off===ref) ? v : 1-v));
+    break;
+  }
+  return {ref:ref, other:other, pts:pts, lev:lev, ea:ea, eb:eb,
+          oa:oa, da:da, ob:ob, db:db,
+          anyWp:any, end:end, n:pts.length};
+}
+
+/* Expected points added, by quarter, offence and defence.
+   Same mirror as above. Returns rows ready for the box. */
+function epByQuarter(g, S, hasPen){
+  var qs = [], acc = {};
+  (g.drives||[]).forEach(function(d){
+    var q = d.q ? (d.q > 4 ? 'OT' : String(d.q)) : null;
+    if(!q) return;
+    if(qs.indexOf(q) < 0) qs.push(q);
+    /* **Earned and penalty, split but never re-baselined.** `pen` is
+       the part of this drive's EPA that came on a play where an
+       accepted flag moved the ball; `e - pen` is what the unit did
+       with the football. The two always add back to today's number,
+       so no figure on this page is quietly redefined.
+
+       The penalty share is charged to the team it happened to, on
+       both sides of the ball: an offence flagged for holding carries
+       it, and so does a defence whose opponent was flagged -- the
+       credit it did not earn is shown rather than removed. */
+    var e = d.epa||0, pn = hasPen ? (d.pen||0) : 0;
+    var w = (d.wpa===null||d.wpa===undefined)?0:d.wpa;
+    var on = d.off, vs = (d.off===S.ref) ? S.other : S.ref;
+    acc[on] = acc[on] || {}; acc[vs] = acc[vs] || {};
+    acc[on][q] = acc[on][q] || {off:0, def:0, pen:0, woff:0, wdef:0};
+    acc[vs][q] = acc[vs][q] || {off:0, def:0, pen:0, woff:0, wdef:0};
+    acc[on][q].off += (e - pn);  acc[on][q].woff += w;  acc[on][q].pen += pn;
+    acc[vs][q].def -= (e - pn);  acc[vs][q].wdef -= w;  acc[vs][q].pen -= pn;
+  });
+  qs.sort(function(a,b){
+    return (a==='OT'?99:+a) - (b==='OT'?99:+b); });
+  return {qs:qs, acc:acc};
+}
+
+/* One x scale for all three panels, so they can be read against each
+   other. The denominator is the drive count rather than count-1,
+   which leaves the last slot for the closing win-probability point. */
+function xOf(i, n){ return PADL + (i/Math.max(n,1))*(W-PADL-PADR); }
+
+function qbreaks(drives){
+  var out = [];
+  for(var i=1;i<drives.length;i++){
+    if(drives[i].q && drives[i-1].q && drives[i].q!==drives[i-1].q)
+      out.push({i:i, q:drives[i].q});
+  }
+  return out;
+}
+
+function axisY(v0, v1, n){
+  var out=[], step=(v1-v0)/n;
+  for(var i=0;i<=n;i++) out.push(v0+step*i);
+  return out;
+}
+
+function figWP(S, g){
+  if(!S.anyWp) return '';
+  var H = 190, top = 12, bot = 24, h = H-top-bot;
+  var n = S.n;
+  function X(i){ return xOf(i, n); }
+  function Y(v){ return top + (1-v)*h; }
+  var seg = [], cur = [];
+  S.pts.forEach(function(p){
+    if(p.wp===null){ if(cur.length){seg.push(cur);cur=[];} return; }
+    cur.push(X(p.i).toFixed(1)+','+Y(p.wp).toFixed(1));
+  });
+  if(S.end!==null && cur.length) cur.push(X(n).toFixed(1)+','+Y(S.end).toFixed(1));
+  if(cur.length) seg.push(cur);
+  var lines = seg.map(function(c){
+    return '<polyline fill="none" stroke="var(--team-a)" stroke-width="2" '
+      + 'stroke-linejoin="round" stroke-linecap="round" points="'
+      + c.join(' ')+'"/>'; }).join('');
+  var grid = [0,.25,.5,.75,1].map(function(v){
+    return '<line x1="'+PADL+'" x2="'+(W-PADR)+'" y1="'+Y(v).toFixed(1)
+      +'" y2="'+Y(v).toFixed(1)+'" stroke="'
+      + (v===.5?'var(--axis)':'var(--grid)')+'" stroke-width="1"/>'
+      + '<text x="'+(PADL-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" '
+      + 'font-size="10" fill="var(--muted)">'+(v*100)+'%</text>'; }).join('');
+  var qs = qbreaks(g.drives).map(function(b){
+    return '<line x1="'+X(b.i).toFixed(1)+'" x2="'+X(b.i).toFixed(1)+'" y1="'
+      + top+'" y2="'+(top+h)+'" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="'+(X(b.i)+3).toFixed(1)+'" y="'+(top+9)+'" font-size="9" '
+      + 'fill="var(--muted)">Q'+b.q+'</text>'; }).join('');
+  var lx = n, lv = S.end;
+  if(lv===null){
+    for(var i=S.pts.length-1;i>=0;i--){
+      if(S.pts[i].wp!==null){ lx=S.pts[i].i; lv=S.pts[i].wp; break; } }
+  }
+  var endLab = (lv===null||lv===undefined) ? '' :
+      '<circle cx="'+X(lx).toFixed(1)+'" cy="'+Y(lv).toFixed(1)
+      + '" r="3.5" fill="var(--team-a)" stroke="var(--panel)" stroke-width="2"/>'
+      + '<text x="'+(X(lx)+9).toFixed(1)+'" y="'+(Y(lv)+4).toFixed(1)
+      + '" font-size="11" fill="var(--ink)" font-weight="600">'
+      + Math.round(lv*100)+'%</text>';
+  /* **The line does not end at 0 or 100% and should not be made to.**
+     Every point is a state priced *before* a snap, and the last snap of
+     a game is no exception -- the model never sees it resolve. Arkansas
+     St. won 31-30 and the line closes at 49%, which is the honest
+     reading of "a coin flip with one drive left", not an error. Drawing
+     a terminal point at 100% would be pasting the result into a model
+     line; the result is stated beside it instead. */
+  var fin = '';
+  var sd = sides(g);
+  if(sd && g.final){
+    var rh = (S.ref===sd.home), rp = g.final[rh?0:1], op = g.final[rh?1:0];
+    fin = '<text x="'+(W-PADR)+'" y="'+(top-1)+'" text-anchor="end" '
+      + 'font-size="10" fill="var(--muted)">final '+esc(S.ref)+' '+rp
+      + '&#8211;'+op+'</text>';
+  }
+  return '<div class="dc-fig" data-fig="wp"><h3>Win probability &mdash; '
+    + esc(S.ref)+'</h3><p>' + info('Where it stood at the <b>start of each drive</b>.',
+      'One team is plotted; the other is the mirror of it. The line stops '
+      + 'short of 0 or 100% because every point prices a state before a '
+      + 'snap &mdash; the model never sees the last play resolve.') + '</p>'
+    + '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Win probability '
+    + 'for '+esc(S.ref)+' at the start of each drive">'
+    + grid+qs+lines+endLab+fin
+    + '<line x1="'+PADL+'" x2="'+(W-PADR)+'" y1="'+(top+h)+'" y2="'+(top+h)
+    + '" stroke="var(--axis)" stroke-width="1"/>'
+    + '<text x="'+PADL+'" y="'+(H-6)+'" font-size="10" fill="var(--muted)">'
+    + 'drive 1</text><text x="'+(W-PADR)+'" y="'+(H-6)+'" font-size="10" '
+    + 'fill="var(--muted)" text-anchor="end">drive '+n+'</text></svg></div>';
+}
+
+function figLev(S, g){
+  var vals = S.lev.filter(function(v){return v!==null;});
+  if(!vals.length) return '';
+  var mx = Math.max.apply(null, vals) || 1;
+  var H = 74, top = 10, bot = 18, h = H-top-bot;
+  var n = S.n, xw = W-PADL-PADR;
+  var bw = Math.max(1.5, Math.min(9, xw/Math.max(n,1)-2));
+  function X(i){ return xOf(i, n); }
+  var bars = S.lev.map(function(v,i){
+    if(v===null) return '';
+    var bh = (v/mx)*h;
+    return '<rect x="'+(X(i)-bw/2).toFixed(1)+'" y="'+(top+h-bh).toFixed(1)
+      + '" width="'+bw.toFixed(1)+'" height="'+Math.max(bh,0.8).toFixed(1)
+      + '" rx="1" fill="var(--gold)" opacity="0.85"/>'; }).join('');
+  return '<div class="dc-fig" data-fig="lev"><h3>Leverage</h3>'
+    + '<p>' + info('What a touchdown would have been worth from where '
+      + 'each drive began.',
+      'How much was at stake before a play was run. A level, not a '
+      + 'total, so it is not a line.') + '</p>'
+    + '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Leverage of '
+    + 'each drive, peak '+(mx*100).toFixed(0)+' percent">'
+    + '<text x="'+(PADL-8)+'" y="'+(top+6)+'" text-anchor="end" font-size="10" '
+    + 'fill="var(--muted)">'+(mx*100).toFixed(0)+'%</text>'
+    + bars
+    + '<line x1="'+PADL+'" x2="'+(W-PADR)+'" y1="'+(top+h)+'" y2="'+(top+h)
+    + '" stroke="var(--axis)" stroke-width="1"/></svg></div>';
+}
+
+/* Offence and defence, one panel a team.
+ *
+ * Four series on one plot would put yellow beside orange, which fails
+ * the all-pairs colour gate, and would ask a reader to hold four
+ * identities at once. **Small multiples instead**: the panel says
+ * which team, the colour says which unit, and the two panels share one
+ * y scale so a defence in the second can be read against an offence in
+ * the first. That comparability is the whole question -- did this
+ * team's defence do more than its offence?
+ */
+function figSplit(S, g){
+  var all = S.oa.concat(S.da, S.ob, S.db);
+  if(!all.length) return '';
+  var lo = Math.min(0, Math.min.apply(null, all));
+  var hi = Math.max(0, Math.max.apply(null, all));
+  if(hi-lo < 2) hi = lo+2;
+  var H = 150, top = 10, bot = 20, h = H-top-bot, n = S.n;
+  function X(i){ return xOf(i, n); }
+  function Y(v){ return top + (1-(v-lo)/(hi-lo))*h; }
+  function poly(arr, col){
+    return '<polyline fill="none" stroke="'+col+'" stroke-width="2" '
+      + 'stroke-linejoin="round" points="'
+      + arr.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1);})
+           .join(' ')+'"/>'; }
+  /* **Two lines that finish together collide at the label.** UCF ended
+     a 2026 game with offence +31.5 and defence +32.3; both labels drew
+     at almost the same height and read as one garbled number. `dy`
+     pushes them apart when they are closer than a line's height. */
+  function cap(arr, col, dy){
+    var i = arr.length-1;
+    return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(arr[i]).toFixed(1)
+      + '" r="3.5" fill="'+col+'" stroke="var(--panel)" stroke-width="2"/>'
+      + '<text x="'+(X(i)+9).toFixed(1)+'" y="'+(Y(arr[i])+4+(dy||0)).toFixed(1)
+      + '" font-size="11" fill="var(--ink)" font-weight="600">'
+      + (arr[i]>0?'+':'')+arr[i].toFixed(1)+'</text>'; }
+  function nudge(a, b){
+    // returns [dyForA, dyForB]; 12px is the label's own line height
+    var ya = Y(a[a.length-1]), yb = Y(b[b.length-1]);
+    if(Math.abs(ya-yb) >= 12) return [0, 0];
+    return ya <= yb ? [-6, 6] : [6, -6];
+  }
+  var ticks = axisY(lo, hi, 3).map(function(v){
+    return '<line x1="'+PADL+'" x2="'+(W-PADR)+'" y1="'+Y(v).toFixed(1)
+      + '" y2="'+Y(v).toFixed(1)+'" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="'+(PADL-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" '
+      + 'font-size="10" fill="var(--muted)">'+v.toFixed(0)+'</text>'; }).join('');
+  var zero = (lo<0&&hi>0) ? '<line x1="'+PADL+'" x2="'+(W-PADR)+'" y1="'
+      + Y(0).toFixed(1)+'" y2="'+Y(0).toFixed(1)
+      + '" stroke="var(--axis)" stroke-width="1"/>' : '';
+  var qs = qbreaks(g.drives).map(function(b){
+    return '<line x1="'+X(b.i).toFixed(1)+'" x2="'+X(b.i).toFixed(1)+'" y1="'
+      + top+'" y2="'+(top+h)+'" stroke="var(--grid)" stroke-width="1"/>'; }).join('');
+  function panel(team, off, def){
+    return '<div class="dc-fig" data-fig="split"><h4>'+esc(team)+'</h4>'
+      + '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Running '
+      + 'expected points added by '+esc(team)+', offence and defence">'
+      + ticks+zero+qs+poly(def,'var(--team-b)')+poly(off,'var(--team-a)')
+      + (function(){ var d = nudge(def, off);
+          return cap(def,'var(--team-b)',d[0]) + cap(off,'var(--team-a)',d[1]); })()
+      + '<line x1="'+PADL+'" x2="'+(W-PADR)+'" y1="'+(top+h)+'" y2="'+(top+h)
+      + '" stroke="var(--axis)" stroke-width="1"/></svg></div>';
+  }
+  return '<div class="dc-fig"><h3>Offence and defence, apart</h3>'
+    + '<p>' + info('The same drives, split &mdash; a defence line above '
+      + 'an offence line means that unit carried the team.',
+      'A defence earns the mirror of what it takes off the offence '
+      + 'across from it, so the two panels share a scale and can be read '
+      + 'against each other.') + '</p>'
+    + '<div class="dc-key"><span><i style="background:var(--team-a)"></i>'
+    + 'offence</span><span><i style="background:var(--team-b)"></i>'
+    + 'defence</span></div></div>'
+    + panel(S.ref, S.oa, S.da) + panel(S.other, S.ob, S.db);
+}
+
+/* `figEPA` -- one panel, one line a team -- was removed once the
+   offence/defence split landed: its two lines are precisely the two
+   offence lines below it, and a page that draws the same series twice
+   teaches a reader to distrust both. */
+
+/* Hover: one transparent overlay a panel, snapping to the nearest
+   drive. The hit area is the whole plot height, so there is no
+   pinpoint target to land on. */
+function wireHover(root, S, g){
+  var n = S.pts.length;
+  root.querySelectorAll('.dc-fig').forEach(function(fig){
+    var svg = fig.querySelector('svg');
+    if(!svg) return;
+    var tip = document.createElement('div');
+    tip.className = 'dc-tip'; fig.appendChild(tip);
+    var cross = document.createElementNS('http://www.w3.org/2000/svg','line');
+    cross.setAttribute('stroke','var(--axis)');
+    cross.setAttribute('stroke-width','1');
+    cross.setAttribute('opacity','0');
+    svg.appendChild(cross);
+    function move(ev){
+      var r = svg.getBoundingClientRect();
+      var vb = svg.viewBox.baseVal;
+      var x = (ev.clientX - r.left) / r.width * vb.width;
+      var i = Math.round((x-PADL)/((W-PADL-PADR)||1)*n);
+      i = Math.max(0, Math.min(n-1, i));
+      var d = S.pts[i].d, px = xOf(i, n);
+      cross.setAttribute('x1',px); cross.setAttribute('x2',px);
+      cross.setAttribute('y1',0); cross.setAttribute('y2',vb.height);
+      cross.setAttribute('opacity','0.5');
+      var bits = ['<b>'+esc(d.off)+'</b> · '+esc(res(d.result))];
+      if(d.sc) bits.push('score '+d.sc[1]+'–'+d.sc[0]);
+      bits.push('EPA '+f2(d.epa)
+        + (d.wpa!==null&&d.wpa!==undefined?(' · WPA '+f3(d.wpa)):'')
+        + (d.lev!==null&&d.lev!==undefined?(' · lev '+d.lev.toFixed(3)):''));
+      tip.innerHTML = bits.join('<br>');
+      tip.style.opacity = 1;
+      tip.style.left = (px/vb.width*r.width)+'px';
+      tip.style.top = (ev.clientY - r.top - 12)+'px';
+    }
+    svg.addEventListener('mousemove', move);
+    svg.addEventListener('mouseleave', function(){
+      tip.style.opacity = 0; cross.setAttribute('opacity','0'); });
+  });
+}
+
+/* ------------------------------------------------------------------ */
+function draw(pack, id){
+  /* **Provenance stays visible.** When a season's plays were priced on
+     another season's expected-points curve, every EPA on this page
+     means something slightly different, so this is stated on the page
+     rather than folded behind an information button -- the same rule
+     the expected-points caveat follows. */
+  var pw = el('dc-prov');
+  if(pack.ep_borrowed && pack.ep_year){
+    pw.innerHTML = '<b>Expected points on this page are priced on the '
+      + esc(pack.ep_year) + ' curve, not ' + esc(pack.year) + '&rsquo;s.</b> '
+      + 'A season needs most of its games before it can carry a surface '
+      + 'of its own; the curve is near-identical across seasons '
+      + '(correlation 0.98&ndash;0.99), which is why borrowing it costs '
+      + 'less than fitting one on three weeks of snaps.';
+    pw.hidden = false;
+  } else { pw.hidden = true; }
+  var g = (pack.games||{})[id];
+  if(!g){ el('dc-out').innerHTML='<div class="dc-msg">That game is not in '
+    +'this week’s file.</div>';
+    el('dc-scorewrap').hidden = el('dc-chartwrap').hidden = true; return; }
+  el('dc-title').textContent = g.teams.join('  v  ');
+
+  var box = scoreBox(g);
+  el('dc-scorewrap').hidden = !box;
+  if(box){
+    el('dc-title2').textContent = g.teams.join('  v  ');
+    el('dc-score').innerHTML = box + epBox(g, series(g), !!pack.pen_split);
+  }
+
+  var S = series(g);
+  var figs = figWP(S,g) + figLev(S,g) + figSplit(S,g);
+  el('dc-chartwrap').hidden = !figs;
+  if(figs){ el('dc-figs').innerHTML = figs; wireHover(el('dc-figs'), S, g); }
+
+  var s = sides(g);
+  var mx = 0;
+  g.drives.forEach(function(d){ mx = Math.max(mx, Math.abs(d.epa||0)); });
+  if(!(mx>0)) mx = 1;
+
+  el('dc-out').innerHTML = g.drives.map(function(d){
+    var w = Math.min(50, Math.abs(d.epa||0)/mx*50);
+    var col = (d.epa||0) >= 0 ? 'var(--pos)' : 'var(--neg)';
+    var sw = (d.swing||[]).map(function(p){
+      return '<div><span class="k '+(p.kind==='pushed'?'dc-up':'dc-dn')+'">'
+        + (p.kind==='pushed'?'pushed':'stalled') + '</span>'
+        + '<span class="e '+(p.epa>=0?'dc-up':'dc-dn')+'">'+f2(p.epa)+'</span>'
+        + '<span class="t">'
+        + (p.dn?(p.dn+' &amp; '+p.dist+' at '+spot(p.pos)+' · '):'')
+        + esc(desc(p))
+        + (p.tags?(' <b>'+esc(p.tags)+'</b>'):'') + '</span></div>';
+    }).join('');
+    // The score after the drive, away first, the way it is said aloud.
+    var run = (d.sc && s)
+      ? '<span class="dc-run">'+esc(s.away)+' '+d.sc[1]+' &ndash; '
+        + esc(s.home)+' '+d.sc[0]+'</span>' : '';
+    return '<div class="dc-drive"><div class="dc-top">'
+      + '<span class="dc-team">'+esc(d.off)+'</span>'
+      + '<span class="dc-pill">Q'+(d.q||'?')+'</span>'
+      + '<span class="dc-pill">'+spot(d.start)+'</span>'
+      + '<span class="dc-pill'+(d.points>0?' dc-sc':'')+'">'+esc(res(d.result))
+        +(d.points?(' '+d.points.toFixed(0)):'')+'</span>'
+      + '<span class="dc-dim" style="font-size:12.5px">'+d.plays+' plays'
+        + (d.secs!==null&&d.secs!==undefined?(', '+mmss(d.secs)):'')+'</span>'
+      /* Run/pass. A sack counts as a pass -- it is a dropback that
+         ended badly, and calling it neither would make the two numbers
+         fall short of the scrimmage snaps on the same card. Kneels,
+         punts and field goals are not scrimmage downs, so run + pass
+         is normally less than the play count and is meant to be. */
+      + ((d.run||d.pas)
+         ? ('<span class="dc-rp" title="rushes and dropbacks; a sack '
+            + 'counts as a pass. Kicks and kneels are neither, so these '
+            + 'do not add to the play count.">'
+            + '<b>' + (d.run||0) + '</b> run <span>&middot;</span> '
+            + '<b>' + (d.pas||0) + '</b> pass</span>')
+         : '')
+      + run
+      + '<span class="dc-nums">'
+        + '<span class="dc-num"><i>EPA</i><b class="'
+          +cls(d.epa)+'">'+f2(d.epa)+'</b>'
+          + '<span class="dc-bar"><i style="background:'+col+';width:'
+          + w.toFixed(0)+'%;'+((d.epa||0)>=0?'left:50%':'right:50%')
+          + '"></i></span></span>'
+        + '<span class="dc-num"><i>WPA</i><b class="'
+          +cls(d.wpa)+'">'+f3(d.wpa)+'</b></span>'
+        + '<span class="dc-num"><i>Leverage</i><b>'
+          +(d.lev===null||d.lev===undefined?'—':d.lev.toFixed(3))+'</b></span>'
+      + '</span></div>'
+      + (sw ? '<div class="dc-sw">'+sw+'</div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+}
+
+CFB.bootOnce({
+  active: 'drives', view: 'drives',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

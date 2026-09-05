@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Coaching &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:30;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}header h1 span{color:var(--gold)}
+.badge{font-family:'Barlow Condensed';font-size:13px;font-weight:600;
+  letter-spacing:.09em;background:var(--gold);color:#17241C;padding:3px 10px;border-radius:3px}
+.combo{margin-left:auto;position:relative;min-width:330px}
+#find{width:100%;padding:8px 30px 8px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+#find::placeholder{color:#8FA394}
+.combo::after{content:"";position:absolute;right:11px;top:15px;
+  border:5px solid transparent;border-top-color:#8FA394;pointer-events:none}
+#opts{position:absolute;left:0;right:0;top:38px;z-index:40;display:none;
+  max-height:60vh;overflow:auto;background:var(--panel);color:var(--ink);
+  border:1px solid var(--line-strong);border-radius:6px;
+  box-shadow:0 10px 28px rgba(0,0,0,.28)}
+#opts.open{display:block}
+#opts div{padding:7px 11px;font-size:13.5px;cursor:pointer;display:flex;gap:8px}
+#opts div .m{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+#opts div.sel,#opts div:hover{background:#E7EEE4}
+#opts .none{color:var(--muted);cursor:default}
+main{max-width:1240px;margin:0 auto;padding:20px;display:flex;
+  flex-direction:column;gap:20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+section>h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+section>h2::before{content:"";width:8px;height:8px;background:var(--gold)}
+section>h2 .hint{margin-left:auto;font-family:'Barlow';font-size:11.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400}
+.hero{display:flex;flex-wrap:wrap;gap:26px;padding:16px}
+.hero div b{display:block;font-family:'Barlow Condensed';font-size:28px;font-weight:700;line-height:1}
+.hero div span{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.legend{padding:10px 16px;border-bottom:1px solid var(--line);font-size:12.5px;
+  color:var(--muted);display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.key{display:inline-flex;align-items:center;gap:6px}
+.key i{width:14px;height:3px;border-radius:2px;display:inline-block}
+.key i.dash{height:0;border-top:2px dashed var(--muted);border-radius:0}
+.note{padding:12px 16px;background:#FBF6E6;border-bottom:1px solid var(--line);
+  font-size:13px;color:#5A4A1F}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:10px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  padding:8px 7px;border-bottom:2px solid var(--line-strong)}
+td{padding:6px 7px;border-bottom:1px solid var(--line)}
+.num{text-align:right;font-weight:600;white-space:nowrap}
+.dim{color:var(--muted);font-weight:400}
+.pos{color:var(--pos);font-weight:700}.neg{color:var(--neg);font-weight:700}
+.tag{font-size:10px;font-weight:600;border-radius:3px;padding:2px 6px;
+  background:#EDF1EA;color:var(--muted);white-space:nowrap}
+.tag.ok{background:#E4EFE6;color:var(--pos)}
+.tag.off{background:#F6E5E5;color:var(--neg)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:980px){.two{grid-template-columns:1fr}}
+svg{display:block;width:100%}
+.bar{position:relative;height:11px;background:#EDF1EA;border-radius:3px;
+  display:inline-block;width:100%;min-width:60px;vertical-align:middle}
+.bar i{position:absolute;top:0;height:11px;border-radius:3px;left:0}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+footer{padding:18px 20px;color:var(--muted);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Coaching <span>Breakdown</span></h1>
+  <span class="badge" id="badge">—</span>
+  <div class="combo">
+    <input type="text" id="find" placeholder="Search or browse teams…"
+           autocomplete="off" spellcheck="false" role="combobox"
+           aria-expanded="false" aria-controls="opts">
+    <div id="opts" role="listbox"></div>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2 id="tname">—<span class="hint" id="tmeta"></span></h2>
+    <div class="hero" id="hero"></div>
+    <div class="note" id="staffnote"></div>
+  </section>
+
+  <section>
+    <h2>Offensive play-calling <span class="hint" id="ohint"></span></h2>
+    <div class="legend" id="legend"></div>
+    <svg id="ochart" viewBox="0 0 920 250" role="img"
+         aria-label="Expected, intended and actual pass rate by week"></svg>
+    <div id="otable"></div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>Run / pass success <span class="hint">by game</span></h2>
+      <div class="legend" id="rplegend"></div>
+      <svg id="rpchart" viewBox="0 0 460 230" role="img"
+           aria-label="Rush and pass success rate by week"></svg>
+    </section>
+    <section>
+      <h2>Defence <span class="hint">what it allowed</span></h2>
+      <div class="legend" id="dlegend"></div>
+      <svg id="dchart" viewBox="0 0 460 230" role="img"
+           aria-label="Rush and pass success allowed by week"></svg>
+    </section>
+  </div>
+
+  <section>
+    <h2>Defensive detail <span class="hint">success allowed, pressure, takeaways</span></h2>
+    <div id="dtable"></div>
+  </section>
+
+  <section id="closesec" hidden>
+    <h2>Ability to close <span class="hint" id="closehint"></span></h2>
+    <div class="hero" id="closehero"></div>
+    <div class="note" id="closenote"></div>
+  </section>
+</main>
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/team_coaching.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+var NAMES = Object.keys(D.teams).sort(function(a,b){
+  return a.localeCompare(b, undefined, {sensitivity:'base'}); });
+var current = null;
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function pct(n,d){return (n===null||n===undefined)?'—':(100*n).toFixed(d===undefined?1:d)+'%';}
+function pp(n){return (n===null||n===undefined)?'—':((n>=0?'+':'')+(100*n).toFixed(1)+'pp');}
+function f1(n){return (n===null||n===undefined)?'—':(Math.round(n*10)/10).toFixed(1);}
+
+/* ---------------- combobox (same control as the team page) ---------- */
+var find=document.getElementById('find'), opts=document.getElementById('opts');
+var shown=[], cursor=-1;
+function paint(list){
+  shown=list;
+  if(!list.length){opts.innerHTML='<div class="none">No team matches</div>';return;}
+  opts.innerHTML=list.map(function(n,i){
+    var t=D.teams[n];
+    return '<div role="option" data-i="'+i+'"'+(n===current?' class="sel"':'')+'>'
+      +'<span>'+esc(n)+'</span><span class="m">'+esc(t.division)
+      +(t.conference?' · '+esc(t.conference):'')+'</span></div>';}).join('');
+}
+/* Rank before filtering. Searching several fields is useful -- you may
+   remember the coach, not the team -- but "rice" matching a coach named
+   Maurice must not outrank the team called Rice. Team name wins, prefix
+   beats contains, and everything else falls in behind. */
+function rank(n, q){
+  var t=D.teams[n], name=n.toLowerCase();
+  if(name===q) return 0;
+  if(name.indexOf(q)===0) return 1;
+  if(name.indexOf(q)>=0) return 2;
+  var other=[t.conference,t.division,t.head_coach,t.oc,t.dc]
+    .map(function(x){return String(x||'').toLowerCase();});
+  for(var i=0;i<other.length;i++) if(other[i].indexOf(q)===0) return 3;
+  for(var j=0;j<other.length;j++) if(other[j].indexOf(q)>=0) return 4;
+  return 99;
+}
+function filtered(q){
+  q=(q||'').toLowerCase().trim();
+  if(!q) return NAMES;
+  var hit=[];
+  NAMES.forEach(function(n){var r=rank(n,q); if(r<99) hit.push([r,n]);});
+  hit.sort(function(a,b){
+    return a[0]-b[0] || a[1].localeCompare(b[1],undefined,{sensitivity:'base'});});
+  return hit.map(function(h){return h[1];});
+}
+function openList(q){paint(filtered(q));opts.classList.add('open');
+  find.setAttribute('aria-expanded','true');cursor=-1;
+  var s=opts.querySelector('.sel'); if(s&&s.scrollIntoView)s.scrollIntoView({block:'nearest'});}
+function closeList(){opts.classList.remove('open');find.setAttribute('aria-expanded','false');cursor=-1;}
+function choose(n){if(!n)return;current=n;find.value=n;closeList();render(n);}
+function move(step){
+  if(!opts.classList.contains('open'))return openList(find.value);
+  if(!shown.length)return;
+  cursor=(cursor+step+shown.length)%shown.length;
+  var rows=opts.querySelectorAll('div[data-i]');
+  rows.forEach(function(r){r.classList.remove('sel');});
+  var r=rows[cursor]; if(r){r.classList.add('sel'); if(r.scrollIntoView)r.scrollIntoView({block:'nearest'});}
+}
+find.addEventListener('focus',function(){openList('');find.select();});
+find.addEventListener('input',function(){openList(find.value);});
+find.addEventListener('keydown',function(e){
+  if(e.key==='ArrowDown'){e.preventDefault();move(1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();move(-1);}
+  else if(e.key==='Enter'){e.preventDefault();choose(cursor>=0?shown[cursor]:shown[0]);}
+  else if(e.key==='Escape'){closeList(); if(current)find.value=current;}});
+opts.addEventListener('mousedown',function(e){
+  var r=e.target.closest('div[data-i]'); if(r){e.preventDefault();choose(shown[+r.dataset.i]);}});
+document.addEventListener('mousedown',function(e){
+  if(!e.target.closest('.combo'))closeList();});
+
+/* ---------------- charts ------------------------------------------- */
+function xy(g, i, n, W, H, pad, v){
+  var x = pad + (n<2 ? (W-2*pad)/2 : i*(W-2*pad)/(n-1));
+  var y = H - pad - v*(H-2*pad);
+  return [x, y];
+}
+function line(pts, col, dash){
+  if(pts.length<2) return '';
+  return '<path d="M'+pts.map(function(p){return p[0].toFixed(1)+' '+p[1].toFixed(1);}).join('L')
+    +'" fill="none" stroke="'+col+'" stroke-width="2"'
+    +(dash?' stroke-dasharray="'+dash+'"':'')+' stroke-linejoin="round"/>';
+}
+function grid(W,H,pad,labels){
+  var s='';
+  for(var v=0; v<=1.0001; v+=0.25){
+    var y=H-pad-v*(H-2*pad);
+    s+='<line x1="'+pad+'" y1="'+y.toFixed(1)+'" x2="'+(W-pad)+'" y2="'+y.toFixed(1)
+      +'" stroke="'+(v===0?'#BFCBBC':'#E7ECE4')+'" stroke-width="1"/>';
+    s+='<text x="'+(pad-6)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end" '
+      +'font-size="9.5" fill="#5C6B5F">'+(v*100).toFixed(0)+'%</text>';
+  }
+  return s;
+}
+function weekTicks(games,W,H,pad){
+  var s='', n=games.length;
+  games.forEach(function(g,i){
+    if(n>14 && i%2) return;
+    var x=xy(null,i,n,W,H,pad,0)[0];
+    s+='<text x="'+x.toFixed(1)+'" y="'+(H-pad+13)+'" text-anchor="middle" '
+      +'font-size="9.5" fill="#5C6B5F">'+(g.week==null?'':g.week)+'</text>';
+  });
+  return s;
+}
+
+function drawOffense(t){
+  var W=920,H=250,pad=34,g=t.games,n=g.length;
+  var s=grid(W,H,pad)+weekTicks(g,W,H,pad);
+  // Bands first so the lines sit on top of them.
+  g.forEach(function(x,i){
+    if(x.as_intended) return;
+    var px=xy(null,i,n,W,H,pad,0)[0];
+    s+='<rect x="'+(px-7)+'" y="'+pad+'" width="14" height="'+(H-2*pad)
+      +'" fill="#B04343" opacity="0.07"/>';
+  });
+  var exp=[],int_=[],act=[];
+  g.forEach(function(x,i){
+    if(x.expected!=null) exp.push(xy(null,i,n,W,H,pad,x.expected));
+    if(x.intent!=null)   int_.push(xy(null,i,n,W,H,pad,x.intent));
+    if(x.actual!=null)   act.push(xy(null,i,n,W,H,pad,x.actual));
+  });
+  s+=line(exp,'var(--exp)','5 4')+line(int_,'var(--int)','2 3')+line(act,'var(--act)');
+  g.forEach(function(x,i){
+    if(x.actual==null) return;
+    var p=xy(null,i,n,W,H,pad,x.actual);
+    s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.4" '
+      +'fill="'+(x.as_intended?'var(--act)':'var(--neg)')+'"><title>Week '
+      +(x.week==null?'?':x.week)+' vs '+esc(x.opponent)+'\nactual '+pct(x.actual)
+      +'  intent '+pct(x.intent)+'  gap '+pp(x.disruption)+'</title></circle>';
+  });
+  document.getElementById('ochart').innerHTML=s;
+}
+
+/* Reference lines. A success rate is meaningless in isolation -- 41%
+   rushing is strong in one division and ordinary in another -- so each
+   chart carries its peer group. Conference is preferred and division is
+   the fallback, because a conference of three teams is not an average,
+   it is the team itself. */
+function bench(t,metric){
+  var B=(D.benchmarks||{});
+  var c=(B.conference||{})[t.conference];
+  if(c&&c[metric]!=null) return {v:c[metric], lab:t.conference};
+  var d=(B.division||{})[t.division];
+  if(d&&d[metric]!=null) return {v:d[metric], lab:t.division};
+  return null;
+}
+function refLine(b,col,W,H,pad){
+  if(!b) return '';
+  var p=xy(null,0,1,W,H,pad,b.v), y=p[1];
+  return '<line x1="'+pad+'" y1="'+y.toFixed(1)+'" x2="'+(W-pad/2)
+    +'" y2="'+y.toFixed(1)+'" stroke="'+col+'" stroke-width="1.3"'
+    +' stroke-dasharray="5 4" opacity="0.75"><title>'+esc(b.lab)
+    +' average '+pct(b.v)+'</title></line>';
+}
+
+function drawPair(id,games,aKey,bKey,aCol,bCol,aLab,bLab,t,aMetric,bMetric){
+  var W=460,H=230,pad=32,n=games.length;
+  var s=grid(W,H,pad)+weekTicks(games,W,H,pad);
+  var bA=aMetric?bench(t,aMetric):null, bB=bMetric?bench(t,bMetric):null;
+  s+=refLine(bA,aCol,W,H,pad)+refLine(bB,bCol,W,H,pad);
+  var A=[],B=[];
+  games.forEach(function(x,i){
+    var av=x[aKey], bv=x[bKey];
+    if(av!=null&&isFinite(av)) A.push(xy(null,i,n,W,H,pad,av));
+    if(bv!=null&&isFinite(bv)) B.push(xy(null,i,n,W,H,pad,bv));
+  });
+  s+=line(A,aCol)+line(B,bCol);
+  games.forEach(function(x,i){
+    [[aKey,aCol,aLab],[bKey,bCol,bLab]].forEach(function(k){
+      var v=x[k[0]]; if(v==null||!isFinite(v))return;
+      var p=xy(null,i,n,W,H,pad,v);
+      s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.8" fill="'+k[1]
+        +'"><title>Week '+(x.week==null?'?':x.week)+' '+k[2]+' '+pct(v)+'</title></circle>';
+    });
+  });
+  document.getElementById(id).innerHTML=s;
+}
+
+/* ---------------- render ------------------------------------------- */
+function render(name){
+  var t=D.teams[name]; if(!t) return;
+  document.getElementById('tname').innerHTML=CFB.teamLink(name, D.season)
+    +'<span class="hint">'+esc(t.division)
+    +(t.conference?' · '+esc(t.conference):'')+'</span>';
+
+  var oGood=t.games.filter(function(g){return g.as_intended;}).length;
+  document.getElementById('hero').innerHTML=[
+    ['Rating', f1(t.rating)],
+    ['Residual', t.residual==null?'—':((t.residual>=0?'+':'')+f1(t.residual))],
+    ['Head coach', esc(t.head_coach||'—')],
+    ['Tenure', t.tenure==null?'—':(t.tenure+(t.tenure===1?' yr':' yrs'))],
+    ['Preseason expected pass', pct(t.expected)],
+    ['In-season intent', pct(t.intent)],
+    ['Identity shift', pp(t.identity_shift)],
+    ['Games as intended', oGood+' / '+t.games.length]
+  ].map(function(p){
+    return '<div><b>'+p[1]+'</b><span>'+p[0]+'</span></div>';}).join('');
+
+  renderCloseout(t);
+
+  var star=t.new_staff?' <span class="tag">new staff</span>':'';
+  document.getElementById('staffnote').innerHTML =
+    '<b>Play-callers.</b> OC '+esc(t.oc||'unknown')
+    +(t.oc_is_hc?' <span class="tag">head coach calls it</span>':'')
+    +' &nbsp;·&nbsp; DC '+esc(t.dc||'unknown')
+    +(t.dc_is_hc?' <span class="tag">head coach calls it</span>':'')+star
+    +'<br>Coordinators are a snapshot as of '+(t.coord_asof||'the latest scrape')
+    +', not necessarily the staff in '+D.season+'. There is no public record '
+    +'of when a coordinator changed, so the preseason expectation below is '
+    +'built from <b>'+esc(t.expected_source||'—')+'</b> rather than from who '
+    +'is calling the plays.';
+
+  document.getElementById('legend').innerHTML=
+    '<span class="key"><i style="background:var(--exp)"></i>expected — preseason ('
+      +esc(t.expected_source||'—')+')</span>'
+    +'<span class="key"><i style="background:var(--int)"></i>intent — season neutral-script fingerprint</span>'
+    +'<span class="key"><i style="background:var(--act)"></i>actual — this game, neutral script</span>'
+    +'<span class="key"><i style="background:#B04343;opacity:.25"></i>shaded = called differently than intended (&gt;10pp)</span>';
+  document.getElementById('ohint').textContent =
+    D.neutral_script+' · league average '+pct(D.league.as_intended,0)+' of games as intended';
+
+  /* Legends for the two success charts. They were the only charts on
+     the page without one, so the dashed reference lines in particular
+     had no way of announcing what they were. */
+  function keys(pairs, metric){
+    var b = metric ? bench(t, metric) : null;
+    return pairs.map(function(p){
+      return '<span class="key"><i style="background:'+p[0]+'"></i>'
+        +esc(p[1])+'</span>';}).join('')
+      + (b ? '<span class="key"><i class="dash"></i>'+esc(b.lab)
+             +' average</span>' : '');
+  }
+  document.getElementById('rplegend').innerHTML =
+    keys([['var(--field)','rush success'],['var(--gold)','pass success']],
+         'rush_success');
+  document.getElementById('dlegend').innerHTML =
+    keys([['var(--field)','rush allowed'],['var(--neg)','pass allowed']],
+         'rush_success_allowed');
+
+  drawOffense(t);
+  drawPair('rpchart',t.games,'rush_success','pass_success',
+           'var(--field)','var(--gold)','rush success','pass success',
+           t,'rush_success','pass_success');
+  drawPair('dchart',t.games.map(function(g){
+    return {week:g.week, rs:(g.defense||{}).rush_success_allowed,
+            ps:(g.defense||{}).pass_success_allowed};}),
+           'rs','ps','var(--field)','var(--neg)','rush allowed','pass allowed',
+           t,'rush_success_allowed','pass_success_allowed');
+
+  document.getElementById('otable').innerHTML =
+    '<table><thead><tr><th class="num">Wk</th><th>Opponent</th>'
+    +'<th class="num">Expected</th><th class="num">Intent</th>'
+    +'<th class="num">Actual</th><th class="num">All snaps</th>'
+    +'<th class="num">Gap</th><th></th>'
+    +'<th class="num">Rush succ</th><th class="num">Pass succ</th>'
+    +'<th class="num">Yds/play</th></tr></thead><tbody>'
+    + t.games.map(function(g){
+      return '<tr'+(g.measurable===false?' style="opacity:.55"':'')
+        +'><td class="num dim">'+(g.week==null?'':g.week)+'</td>'
+        +'<td>'+esc(g.opponent||'—')+'</td>'
+        +'<td class="num dim">'+pct(g.expected)+'</td>'
+        +'<td class="num dim">'+pct(g.intent)+'</td>'
+        +'<td class="num">'+pct(g.actual)+'</td>'
+        /* The all-snap pass rate, always. When a game has too little
+           neutral script the Actual column is blank -- correctly, an
+           identity cannot be read from three snaps -- and without this
+           column the row then shows no pass rate at all, which reads as
+           "we have no data for this game". We have plenty: Abilene
+           Christian ran 75 snaps against TCU in 2025 and threw on 44%
+           of them. That number is not an intent measure and is not
+           offered as one, but it is a fact about the game and there is
+           no reason to hide it. */
+        +'<td class="num'+(g.measurable===false?'':' dim')+'" title="'
+          +(g.snaps||0)+' snaps, garbage time included">'
+          +pct(g.allsnap)+'</td>'
+        +'<td class="num '+(g.disruption>0?'pos':g.disruption<0?'neg':'dim')+'">'
+          +pp(g.disruption)+'</td>'
+        /* A game with too little neutral script says nothing about
+           play-calling identity, but it still happened, and a row that
+           silently vanishes reads as missing data rather than as an
+           unmeasurable game. Show it, greyed, with the reason. */
+        +'<td>'+(g.measurable===false
+          ? '<span class="tag" title="Only '+(g.neutral_snaps||0)
+            +' neutral-script snaps — too one-sided to read an identity from">'
+            +'not measurable</span>'
+          : '<span class="tag '+(g.as_intended?'ok':'off')+'">'
+            +(g.as_intended?'as intended':'off plan')+'</span>')+'</td>'
+        +'<td class="num dim">'+pct(g.rush_success)+'</td>'
+        +'<td class="num dim">'+pct(g.pass_success)+'</td>'
+        +'<td class="num dim">'+(g.yards_play==null?'—':g.yards_play.toFixed(2))+'</td>'
+        +'</tr>';}).join('')
+    +'</tbody></table>';
+
+  var dg=t.games.filter(function(g){return g.defense;});
+  var bendNote='';
+  if(dg.length){
+    var sa=0,ea=0,n=0;
+    dg.forEach(function(g){var d=g.defense;
+      if(d.success_allowed!=null&&d.explosive_allowed!=null){
+        sa+=d.success_allowed;ea+=d.explosive_allowed;n++;}});
+    if(n){
+      sa/=n;ea/=n;
+      // Descriptive only. The standardised bend index lives on the
+      // coaches view, where the whole division is in scope to compare
+      // against; here there is one team, so state the two rates and let
+      // the shape speak.
+      bendNote='<div class="dim" style="margin:4px 0 8px">Season: '
+        +(sa*100).toFixed(1)+'% success allowed, '+(ea*100).toFixed(1)
+        +'% explosive allowed. A defence that keeps everything in front '
+        +'runs high on the first and low on the second; a gambling one '
+        +'runs the reverse.</div>';}}
+  document.getElementById('dtable').innerHTML = dg.length ?
+    bendNote +
+    '<table><thead><tr><th class="num">Wk</th><th>Opponent</th>'
+    +'<th class="num" title="Share of snaps faced that met the success threshold. Read with Expl allowed: high succ + low expl is bend-don\'t-break, the reverse is a gambling defence.">Succ allowed</th>'
+    +'<th class="num" title="Share of snaps faced that gained 15+ yards.">Expl allowed</th>'
+    +'<th class="num">Rush</th><th class="num">Pass</th>'
+    +'<th class="num">Yds/play</th><th class="num">Pass rate faced</th>'
+    +'<th class="num">Sacks</th><th class="num">INT</th><th class="num">Fum</th>'
+    +'</tr></thead><tbody>'
+    + dg.map(function(g){var d=g.defense;
+      return '<tr><td class="num dim">'+(g.week==null?'':g.week)+'</td>'
+        +'<td>'+esc(g.opponent||'—')+'</td>'
+        +'<td class="num">'+pct(d.success_allowed)+'</td>'
+        +'<td class="num">'+pct(d.explosive_allowed)+'</td>'
+        +'<td class="num dim">'+pct(d.rush_success_allowed)+'</td>'
+        +'<td class="num dim">'+pct(d.pass_success_allowed)+'</td>'
+        +'<td class="num dim">'+(d.yards_allowed_play==null?'—':Number(d.yards_allowed_play).toFixed(2))+'</td>'
+        +'<td class="num dim">'+pct(d.pass_rate_faced)+'</td>'
+        +'<td class="num">'+d.sacks+'</td>'
+        +'<td class="num">'+d.interceptions+'</td>'
+        +'<td class="num">'+d.fumbles+'</td></tr>';}).join('')
+    +'</tbody></table>'
+    : '<div class="empty">No defensive rows for this team.</div>';
+}
+
+document.getElementById('badge').textContent=D.season+' season';
+document.getElementById('meta').textContent=
+  D.n_teams+' teams with play-by-play · expectation built from '+D.prior
+  +' · generated '+D.generated;
+/* Open on the team the URL asked for. The coaches page links here as
+   coaching.html?year=<season>&team=<team_key>, and this page ignored the
+   parameter entirely -- there was no query-string handling in the file
+   at all -- so every one of those links landed on NAMES[0] and looked
+   like the link was broken rather than unread.
+
+   Matched exactly first, then on a loosened key. Both sides carry the
+   Massey spelling (coach_export emits team_key, this payload is keyed
+   the same way) so the exact hit is the normal case; the fallback is for
+   the underscore/space split that HANDOFF §6.0j documents, since a URL
+   is exactly where a name gets rewritten by something in between.
+   Falling back to NAMES[0] on a miss keeps the page useful rather than
+   blank, and the search box shows which team is actually loaded. */
+function fromQuery(){
+  try{
+    var want=new URLSearchParams(location.search).get('team');
+    if(!want) return null;
+    if(NAMES.indexOf(want)>=0) return want;
+    var loose=function(s){return String(s).replace(/_/g,' ')
+      .replace(/\s+/g,' ').trim().toLowerCase();};
+    var w=loose(want);
+    for(var i=0;i<NAMES.length;i++){ if(loose(NAMES[i])===w) return NAMES[i]; }
+  }catch(e){}
+  return null;
+}
+choose(fromQuery()||NAMES[0]);
+
+// ---------------------------------------------------------------------
+// Ability to close.
+//
+// Counts, deliberately, and no sort. run_closeout.py's split-half test
+// across 200 random game-level splits put the offensive side at r=+0.23
+// (Spearman-Brown 0.37) and the defensive side at +0.05. A single split
+// of the same data returned anywhere from -0.17 to +0.42, so one split
+// would have "proved" whatever it was asked to. Neither side earns a
+// ranked column, and `sortable` on the payload says so per side rather
+// than being decided here -- if a future run does clear the bar, the
+// number that authorises the change is the one in the data.
+//
+// Shown against expected rather than raw, because the raw rate is mostly
+// a report on how big the leads were: 76% of one-score leads survive
+// against 94% of two-score ones.
+function renderCloseout(t){
+  var sec=document.getElementById('closesec');
+  var c=t.closeout;
+  if(!c||(!c.off&&!c.def)){sec.hidden=true;return;}
+  sec.hidden=false;
+  var seasons=Math.max((c.off&&c.off.seasons)||0,(c.def&&c.def.seasons)||0);
+  document.getElementById('closehint').textContent =
+    esc(t.head_coach||'this coach')+', '+seasons+(seasons===1?' season':' seasons')
+    +' pooled';
+  function cell(x,label,sub){
+    if(!x) return '<div><b>&mdash;</b><span>'+label+'</span></div>';
+    var above=(x.above>=0?'+':'')+(Math.round(x.above*10)/10);
+    return '<div><b>'+x.k+' / '+x.n+'</b><span>'+label+'</span></div>'
+         + '<div><b>'+above+'</b><span>'+sub+'</span></div>';
+  }
+  document.getElementById('closehero').innerHTML =
+      cell(c.off,'Leads protected','vs expected')
+    + cell(c.def,'Ball back, still live','vs expected');
+  var thin=[];
+  if(c.off&&!c.off.enough) thin.push('offence');
+  if(c.def&&!c.def.enough) thin.push('defence');
+  document.getElementById('closenote').innerHTML =
+    '<b>Counts, not a ranking.</b> A qualifying drive is a fourth-quarter '
+    +'possession by the leading team with the trailing team within one '
+    +'score. Offence succeeds if the lead is intact at the whistle; '
+    +'defence succeeds if it forces the ball back while the comeback is '
+    +'still live. &ldquo;vs expected&rdquo; is against the league rate for '
+    +'the same deficit and time, because a coach who protects more '
+    +'one-score leads is doing the harder job.'
+    +(thin.length?'<br><b>Thin sample.</b> Fewer than 20 opportunities on '
+      +'the '+thin.join(' and ')+' side; read the count, not the ratio.':'')
+    +(t.closeout_note?'<br>'+esc(t.closeout_note):'');
+}
+
+}
+
+CFB.bootOnce({
+  active: 'coaching', view: 'coaching',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

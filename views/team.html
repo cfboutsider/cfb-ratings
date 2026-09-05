@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+/* One control, two habits. Typing filters; clicking opens the whole
+   list. Keeping them as two widgets meant the dropdown still showed 900
+   unfiltered options, so the search never actually saved a scroll. */
+.combo{margin-left:auto;position:relative;min-width:330px}
+#find{width:100%;padding:8px 30px 8px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+#find::placeholder{color:#8FA394}
+.combo::after{content:"";position:absolute;right:11px;top:15px;
+  border:5px solid transparent;border-top-color:#8FA394;pointer-events:none}
+#opts{position:absolute;left:0;right:0;top:38px;z-index:40;display:none;
+  max-height:60vh;overflow:auto;background:var(--panel);color:var(--ink);
+  border:1px solid var(--line-strong);border-radius:6px;
+  box-shadow:0 10px 28px rgba(0,0,0,.28)}
+#opts.open{display:block}
+#opts div{padding:7px 11px;font-size:13.5px;cursor:pointer;
+  display:flex;gap:8px;align-items:baseline}
+#opts div .m{margin-left:auto;font-size:11px;color:var(--muted);
+  white-space:nowrap}
+#opts div.sel,#opts div:hover{background:#E7EEE4}
+#opts .none{color:var(--muted);cursor:default}
+main{max-width:1240px;margin:0 auto;padding:20px;display:flex;
+  flex-direction:column;gap:20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+section>h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+section>h2::before{content:"";width:8px;height:8px;background:var(--gold)}
+section>h2 .hint{margin-left:auto;font-family:'Barlow';font-size:11.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400}
+.hero{display:flex;flex-wrap:wrap;gap:26px;padding:16px}
+.hero div b{display:block;font-family:'Barlow Condensed';font-size:30px;font-weight:700;line-height:1}
+.hero div span{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.divtag{font-size:10px;font-weight:600;letter-spacing:.05em;color:#fff;
+  border-radius:3px;padding:2px 7px;display:inline-block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:10px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  padding:8px 7px;border-bottom:2px solid var(--line-strong)}
+td{padding:6px 7px;border-bottom:1px solid var(--line)}
+.num{text-align:right;font-weight:600;white-space:nowrap}
+.dim{color:var(--muted);font-weight:400}
+.pos{color:var(--pos);font-weight:700}.neg{color:var(--neg);font-weight:700}
+.tablewrap{max-height:60vh;overflow:auto}
+.bar{position:relative;height:12px;background:#EDF1EA;border-radius:3px;
+  display:inline-block;width:100%;min-width:80px;vertical-align:middle}
+.bar i{position:absolute;top:0;height:12px;border-radius:3px}
+.mid{position:absolute;left:50%;top:-2px;width:1px;height:16px;background:var(--line-strong)}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+svg{display:block;width:100%}
+footer{padding:18px 20px;color:var(--muted);font-size:12.5px;text-align:center}
+.tm-dc{font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+  text-decoration:none;color:var(--gold,#8a6d1f);border:1px solid currentColor;
+  border-radius:9px;padding:0 5px;opacity:.7;white-space:nowrap}
+.tm-dc:hover{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Team <span>Profile</span></h1>
+  <span id="badge" style="font-family:'Barlow Condensed';font-size:13px;
+    font-weight:600;letter-spacing:.09em;background:var(--gold);color:#17241C;
+    padding:3px 10px;border-radius:3px">—</span>
+  <div class="combo">
+    <input type="text" id="find" placeholder="Search or browse teams…"
+           autocomplete="off" spellcheck="false" role="combobox"
+           aria-expanded="false" aria-controls="opts">
+    <div id="opts" role="listbox"></div>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2 id="tname">—<span class="hint" id="tmeta"></span></h2>
+    <div class="hero" id="hero"></div>
+    <svg id="traj" viewBox="0 0 900 150" role="img"
+         aria-label="Rating by week" style="padding:0 16px 14px"></svg>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>Games that built the rating
+          <span class="hint" id="besthint"></span></h2>
+      <div class="tablewrap" id="best"></div>
+    </section>
+    <section>
+      <h2>Games that cost the most
+          <span class="hint" id="worsthint"></span></h2>
+      <div class="tablewrap" id="worst"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Every game <span class="hint" id="ghint"></span></h2>
+    <div class="tablewrap" id="all"></div>
+  </section>
+
+  <section id="offsec" style="display:none">
+    <h2>Offseason build <span class="hint">how this year's prior was set</span></h2>
+    <div class="tablewrap" id="offtbl"></div>
+  </section>
+
+  <section id="possec" style="display:none">
+    <h2>Talent movement by position
+        <span class="hint" id="poshint"></span></h2>
+    <div class="tablewrap" id="postbl"></div>
+    <p class="dim" id="posnote" style="margin:.5rem 0 0"></p>
+  </section>
+
+  <section id="perfsec" style="display:none">
+    <h2>Performance movement by position
+        <span class="hint" id="perfhint"></span></h2>
+    <div class="tablewrap" id="perftbl"></div>
+    <p class="dim" id="perfnote" style="margin:.5rem 0 0"></p>
+  </section>
+
+  <section id="newsec" style="display:none">
+    <h2>Who arrived, and what they did elsewhere
+        <span class="hint" id="newhint"></span></h2>
+    <div class="tablewrap" id="newtbl"></div>
+    <p class="dim" id="newnote" style="margin:.5rem 0 0"></p>
+  </section>
+</main>
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/team.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+var byId = {}; D.teams.forEach(function(t){byId[t.id]=t;});
+var COLORS = {};
+(function(){
+  var pal=['#2F6B47','#D9A422','#B04343','#3E6E8E','#7A5BA6','#8A6D3B',
+           '#4C7A3F','#A0522D','#556B2F','#6B4C7A'];
+  D.divisions.forEach(function(d,i){COLORS[d]=pal[i%pal.length];});
+})();
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function nm(id){var t=byId[id];return t?String(t.name).replace(/_/g,' '):id;}
+function f1(n){return (n===null||n===undefined)?'—':(Math.round(n*10)/10).toFixed(1);}
+function sgn(n){return (n>=0?'+':'')+f1(n);}
+
+/* One combobox instead of a search box plus a 900-row <select>.
+   Alphabetical, because that is how you look a team up; the rating is
+   shown on the row so the ordering costs no information. */
+var find = document.getElementById('find');
+var opts = document.getElementById('opts');
+var ordered = D.teams.slice().sort(function(a, b){
+  return String(a.name).replace(/_/g,' ')
+    .localeCompare(String(b.name).replace(/_/g,' '), undefined,
+                   {sensitivity:'base'});
+});
+var shown = [], cursor = -1, current = null;
+
+function tname(t){ return String(t.name).replace(/_/g,' '); }
+function meta(t){ return t.division + (t.conference ? ' \u00b7 ' + t.conference : ''); }
+
+function paint(list){
+  shown = list;
+  if(!list.length){
+    opts.innerHTML = '<div class="none">No team matches</div>';
+    return;
+  }
+  opts.innerHTML = list.map(function(t, i){
+    return '<div role="option" data-i="' + i + '"'
+      + (t.id === current ? ' class="sel"' : '') + '>'
+      + '<span>' + esc(tname(t)) + '</span>'
+      + '<span class="m">' + esc(meta(t)) + '  ' + f1(t.mu) + '</span></div>';
+  }).join('');
+}
+
+/* Rank, don't just filter: a team whose name starts with the query
+   should come before one that merely contains it, and before a
+   conference match. Alphabetical within each tier. */
+function rank(t, q){
+  var name = tname(t).toLowerCase();
+  if(name === q) return 0;
+  if(name.indexOf(q) === 0) return 1;
+  if(name.indexOf(q) >= 0) return 2;
+  var other = [t.conference, t.division].map(function(x){
+    return String(x || '').toLowerCase(); });
+  for(var i=0;i<other.length;i++) if(other[i].indexOf(q) === 0) return 3;
+  for(var j=0;j<other.length;j++) if(other[j].indexOf(q) >= 0) return 4;
+  return 99;
+}
+function filtered(q){
+  q = (q || '').toLowerCase().trim();
+  if(!q) return ordered;
+  var hit = [];
+  ordered.forEach(function(t){ var r = rank(t, q); if(r < 99) hit.push([r, t]); });
+  hit.sort(function(a, b){
+    return a[0] - b[0]
+      || tname(a[1]).localeCompare(tname(b[1]), undefined, {sensitivity:'base'}); });
+  return hit.map(function(h){ return h[1]; });
+}
+
+function openList(q){
+  paint(filtered(q));
+  opts.classList.add('open');
+  find.setAttribute('aria-expanded', 'true');
+  cursor = -1;
+  var sel = opts.querySelector('.sel');
+  if(sel && sel.scrollIntoView) sel.scrollIntoView({block:'nearest'});
+}
+function closeList(){
+  opts.classList.remove('open');
+  find.setAttribute('aria-expanded', 'false');
+  cursor = -1;
+}
+function choose(t){
+  if(!t) return;
+  current = t.id;
+  find.value = tname(t);
+  closeList();
+  render(t.id);
+}
+function move(step){
+  if(!opts.classList.contains('open')) return openList(find.value);
+  if(!shown.length) return;
+  cursor = (cursor + step + shown.length) % shown.length;
+  var rows = opts.querySelectorAll('div[data-i]');
+  rows.forEach(function(r){ r.classList.remove('sel'); });
+  var r = rows[cursor];
+  if(r){ r.classList.add('sel');
+         if(r.scrollIntoView) r.scrollIntoView({block:'nearest'}); }
+}
+
+find.addEventListener('focus', function(){ openList(''); find.select(); });
+find.addEventListener('input', function(){ openList(find.value); });
+find.addEventListener('keydown', function(e){
+  if(e.key === 'ArrowDown'){ e.preventDefault(); move(1); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); move(-1); }
+  else if(e.key === 'Enter'){
+    e.preventDefault();
+    choose(cursor >= 0 ? shown[cursor] : shown[0]);
+  }
+  else if(e.key === 'Escape'){
+    closeList();
+    // Restore the name rather than leaving a half-typed query in a box
+    // that no longer matches what is on screen.
+    var t = byId[current];
+    if(t) find.value = tname(t);
+  }
+});
+opts.addEventListener('mousedown', function(e){
+  var row = e.target.closest('div[data-i]');
+  if(row) { e.preventDefault(); choose(shown[+row.dataset.i]); }
+});
+document.addEventListener('mousedown', function(e){
+  if(!e.target.closest('.combo')) closeList();
+});
+
+/* The rating move per game is the whole point of this view, so the bar
+   is scaled to the team's own biggest move rather than a fixed range --
+   a D3 team whose season swings 40 points should look as dramatic as an
+   FBS team swinging 90. */
+function deltaTable(games, scale){
+  if(!games.length)return '<div class="empty">No games.</div>';
+  return '<table><thead><tr><th class="num">Wk</th><th>Opponent</th>'
+    +'<th class="num" title="Rating change from this game">Move</th>'
+    +'<th style="width:110px"></th>'
+    +'<th class="num" title="Result and margin">Result</th>'
+    +'<th class="num" title="Actual margin minus predicted">Surprise</th>'
+    +'<th class="num" title="Opponent rating going into the game">Opp rtg</th>'
+    +'</tr></thead><tbody>'
+    + games.map(function(g){
+      var w=Math.abs(g.d||0)/scale*50;
+      var col=(g.d||0)>=0?'var(--pos)':'var(--neg)';
+      return '<tr><td class="num dim">'+g.wk+'</td>'
+        +'<td>'+(g.loc==='A'?'at ':g.loc==='N'?'vs·N ':'vs ')+esc(nm(g.opp))
+          /* Stamped by site.py `_drive_links`; absent when the name
+             join could not place the game, so no dead links. */
+          +(g.dc?(' <a class="tm-dc" title="Drive chart" href="drives.html#'
+            +encodeURI(g.dc)+'">drives</a>'):'')+'</td>'
+        +'<td class="num '+((g.d||0)>=0?'pos':'neg')+'">'+sgn(g.d)+'</td>'
+        /* `right:auto` / `left:auto` look redundant and are not. The
+           site shell sets `.bar i{ ... left:0}` (site/assets/cfb.css),
+           which is right for the left-anchored bars on the postseason
+           and scoreboard pages. A diverging bar set only `right:50%` for
+           a negative, so the shell's `left:0` still applied -- and with
+           left, right and width all specified the box is
+           over-constrained, `right` is dropped, and the bar drew from
+           the far left edge growing rightwards instead of from the
+           centre line growing left. Measured in Chromium: fill spanning
+           8..52 against a midline at 63.
+           It showed only in the published build, because the standalone
+           dashboard has no shell and rendered correctly -- which is why
+           it survived. Setting both ends makes this independent of
+           whatever the shell defaults to. */
+        +'<td><span class="bar"><span class="mid"></span><i style="'
+          +((g.d||0)>=0?'left:50%;right:auto;':'right:50%;left:auto;')
+          +'background:'+col
+          +';width:'+w.toFixed(1)+'%"></i></span></td>'
+        +'<td class="num '+(g.res==='W'?'pos':g.res==='L'?'neg':'dim')+'">'
+          +g.res+' '+g.pf+'–'+g.pa+'</td>'
+        +'<td class="num dim">'+sgn(g.sur)+'</td>'
+        +'<td class="num dim">'+Math.round(g.omu)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+function trajectory(t){
+  var h=t.history||[];
+  if(h.length<2)return '';
+  var W=900,H=150,P=24;
+  var mus=h.map(function(x){return x.mu;});
+  var lo=Math.min.apply(null,mus),hi=Math.max.apply(null,mus);
+  if(hi-lo<20){var m=(hi+lo)/2;lo=m-10;hi=m+10;}
+  var X=function(i){return P+i*(W-2*P)/Math.max(h.length-1,1);};
+  var Y=function(v){return H-P-(v-lo)/(hi-lo)*(H-2*P);};
+  var pts=h.map(function(x,i){return X(i)+','+Y(x.mu);}).join(' ');
+  var dots=h.map(function(x,i){
+    return '<circle cx="'+X(i)+'" cy="'+Y(x.mu)+'" r="3" fill="var(--field)">'
+      +'<title>Week '+x.w+': '+f1(x.mu)+'</title></circle>';}).join('');
+  return '<polyline points="'+pts+'" fill="none" stroke="var(--field)" '
+    +'stroke-width="2"/>'+dots
+    +'<text x="'+P+'" y="14" font-size="10" fill="var(--muted)">'+f1(hi)+'</text>'
+    +'<text x="'+P+'" y="'+(H-6)+'" font-size="10" fill="var(--muted)">'+f1(lo)+'</text>';
+}
+
+function render(id){
+  var t=byId[id]; if(!t)return;
+  document.getElementById('tname').innerHTML =
+    esc(String(t.name).replace(/_/g,' '))
+    +' <span class="divtag" style="background:'+(COLORS[t.division]||'#555')
+    +'">'+esc(t.division)+'</span>'
+    +'<span class="hint">'+esc(t.conference||'')+'</span>';
+
+  var w=0,l=0;(t.games||[]).forEach(function(g){
+    if(g.res==='W')w++;else if(g.res==='L')l++;});
+  var net=(t.games||[]).reduce(function(a,g){return a+(g.d||0);},0);
+  var hero='<div><b>'+f1(t.mu)+'</b><span>Competitiveness</span></div>'
+    +'<div><b>±'+f1(2*t.sigma)+'</b><span>Range (2σ)</span></div>'
+    +'<div><b>'+w+'–'+l+'</b><span>Record</span></div>';
+  if(t.start!==null&&t.start!==undefined)
+    hero+='<div><b>'+f1(t.start)+'</b><span>Preseason</span></div>'
+      +'<div><b class="'+(net>=0?'pos':'neg')+'">'+sgn(net)+'</b>'
+      +'<span>Net move from games</span></div>';
+  if(t.proj)hero+='<div><b>'+f1(t.proj.fw)+'–'+f1(t.proj.fl)+'</b>'
+    +'<span>Proj final</span></div><div><b>'+t.proj.ew.toFixed(1)+'–'
+    +t.proj.el.toFixed(1)+'</b><span>Expected (win %)</span></div>';
+  document.getElementById('hero').innerHTML=hero;
+  document.getElementById('traj').innerHTML=trajectory(t);
+
+  var g=(t.games||[]).filter(function(x){return x.d!==null&&x.d!==undefined;});
+  var scale=Math.max(1,Math.max.apply(null,g.map(function(x){
+    return Math.abs(x.d);}).concat([1])));
+  /* **Sign-filtered, not just sorted.** Taking the six smallest moves
+     put games that GAINED rating into "games that cost the most" for
+     any team with fewer than six losing weeks -- Texas Tech had two,
+     so four of its six most damaging games were wins. Definitionally a
+     game that added rating did not cost anything, and a panel that has
+     to be read past its own heading is worse than a shorter one. */
+  var gained=g.filter(function(x){return x.d>0;})
+              .sort(function(a,b){return b.d-a.d;});
+  var lost  =g.filter(function(x){return x.d<0;})
+              .sort(function(a,b){return a.d-b.d;});
+  var up=gained.slice(0,6), dn=lost.slice(0,6);
+  document.getElementById('best').innerHTML = up.length
+    ? deltaTable(up,scale)
+    : '<p class="dim">No game has added rating yet.</p>';
+  document.getElementById('worst').innerHTML = dn.length
+    ? deltaTable(dn,scale)
+    : '<p class="dim">No game has cost this team rating.</p>';
+  var nUp=document.getElementById('besthint'), nDn=document.getElementById('worsthint');
+  /* Count before slicing. Reporting `up.length` reports how many rows
+     the panel drew, which is capped at six -- so a team with ten
+     positive games read "6 of 12 games added rating". */
+  if(nUp)nUp.textContent = gained.length+' of '+g.length+' games added rating'
+    +(gained.length>6?' · top 6 shown':'');
+  if(nDn)nDn.textContent = lost.length+' of '+g.length+' games cost rating'
+    +(lost.length>6?' · worst 6 shown':'');
+  document.getElementById('all').innerHTML=
+    deltaTable((t.games||[]).slice().sort(function(a,b){return a.wk-b.wk;}),scale);
+  document.getElementById('ghint').textContent=
+    g.length+' games · net '+sgn(net)+' rating points';
+
+  var o=t.off, sec=document.getElementById('offsec');
+  if(o){
+    sec.style.display='';
+    var rows=[['Last season end','mu_pretalent'],
+              ['Talent change','mu_talent_delta'],
+              ['Residual shed','mu_talent_residual'],
+              ['After talent','mu_rollover'],
+              ['Returning production','pts_returning_prod'],
+              ['Coach transition','pts_coach_change'],
+              ['Portal net','pts_portal'],
+              ['Departures','pts_departures'],
+              ['Manual','pts_manual'],
+              ['Total adjustment','adj_pts']];
+    document.getElementById('offtbl').innerHTML=
+      '<table><tbody>'+rows.filter(function(r){
+        return o[r[1]]!==null&&o[r[1]]!==undefined;}).map(function(r){
+        return '<tr><td>'+r[0]+'</td><td class="num">'+f1(o[r[1]])+'</td></tr>';
+      }).join('')
+      +(o.talent_note?'<tr><td class="dim" colspan="2">'+esc(o.talent_note)
+        +'</td></tr>':'')+'</tbody></table>';
+  } else sec.style.display='none';
+
+  renderPos(t.pos, t.new);
+  renderPerf(t.perf);
+  renderNew(t.new);
+}
+
+/* Position-group movement.
+
+   The score per group is percent-of-perfect at that spot, so it is
+   already comparable across teams; what is *not* automatically
+   comparable is one season against another, and the two ways that goes
+   wrong are both handled before the payload gets here (talent_build.
+   position_movement): a different scorer between the years, and a
+   roster pull thin enough that the change is a coverage gap.
+
+   When the comparison was refused, this says so. A blank block reads as
+   "this roster did not move", which is a different and wrong claim. */
+function renderPos(p, incoming){
+  var sec=document.getElementById('possec');
+  if(!p){sec.style.display='none';return;}
+  sec.style.display='';
+  var hint=document.getElementById('poshint');
+  var note=document.getElementById('posnote');
+  var tbl=document.getElementById('postbl');
+
+  if(p.refused||!p.groups||!p.groups.length){
+    hint.textContent='vs '+p.prior_year;
+    tbl.innerHTML='';
+    note.textContent='No comparison: '+(p.refused||'no position detail');
+    return;
+  }
+
+  var g=p.groups;
+  /* Only groups with a change contribute to the bar scale. A refused
+     group has d===null, and Math.abs(null) is 0, which is harmless --
+     but a group whose only rows are refused would leave scale at 0. */
+  var scale=Math.max.apply(null,g.map(function(x){
+    return (x.d===null||x.d===undefined)?0:Math.abs(x.d);}));
+  if(!(scale>0))scale=1;
+
+  /* Newcomers indexed by the group they play in.
+
+     The change column is recruiting ratings and only recruiting
+     ratings, because that is what the model uses -- so a team that
+     replaced a rated quarterback with an unrated one who threw for a
+     season somewhere else reads as a collapse. Oklahoma State's QB row
+     falls 66.3 to 34.8 in exactly that way, and Drew Mestemaker is why
+     it is wrong to read that as the room getting worse.
+
+     Showing the count does not change the number and must not:
+     production was tested in the composite and did not improve
+     prediction. What it changes is whether a reader can see the number
+     has a known blind spot, on the row where the blind spot is. */
+  var inc={};
+  (incoming||[]).forEach(function(r){
+    var gp=(r.pos||'').toUpperCase();
+    if(gp)(inc[gp]=inc[gp]||[]).push(r);
+  });
+  var anyInc=Object.keys(inc).length>0;
+
+  hint.textContent='vs '+p.prior_year+' · '+p.n_prev+' → '+p.n_now+' players';
+  tbl.innerHTML='<table><thead><tr><th>Group</th>'
+    +'<th class="num">'+p.prior_year+'</th><th class="num">Now</th>'
+    +'<th class="num">Change</th><th style="width:38%">&nbsp;</th>'
+    +'<th class="num">Players</th>'
+    +(anyInc?'<th class="num">Incoming</th>':'')
+    +'</tr></thead><tbody>'
+    +g.map(function(x){
+      var w=Math.min(50,Math.abs(x.d||0)/scale*50);
+      var col=(x.d||0)>=0?'var(--pos,#2F6B47)':'var(--neg,#B04343)';
+      /* Both ends set, for the reason spelled out in deltaTable: the
+         site shell's `.bar i{...left:0}` over-constrains a bar that
+         names only one edge, and the published build is the only place
+         it shows. */
+      /* **A blank cell must say why it is blank** -- the same rule
+         the perf panel follows, and for the same reason its comment
+         records. A group where nobody carried a rating scores 0.0 by
+         construction, and a difference against that is a coverage gap
+         wearing a talent change's clothes. */
+      var has=(x.d!==null&&x.d!==undefined);
+      return '<tr><td>'+x.g+'</td>'
+        +'<td class="num dim">'+f1(x.prev)+'</td>'
+        +'<td class="num">'+f1(x.now)+'</td>'
+        +(has
+          ? '<td class="num '+(x.d>0?'pos':x.d<0?'neg':'dim')+'">'+sgn(x.d)+'</td>'
+            +'<td><span class="bar"><span class="mid"></span><i style="'
+              +(x.d>=0?'left:50%;right:auto;':'right:50%;left:auto;')
+              +'background:'+col+';width:'+w.toFixed(1)+'%"></i></span></td>'
+          : '<td class="dim" colspan="2" style="font-size:.85em">'
+            +esc(x.why||'no comparison')+'</td>')
+        +'<td class="num dim">'+x.n_prev+' → '+x.n_now+'</td>'
+        +(anyInc?'<td class="num">'+incCell(inc[x.g])+'</td>':'')
+        +'</tr>';
+    }).join('')+'</tbody></table>';
+  note.innerHTML='Percent-of-perfect at each spot, this year\u2019s roster '
+    +'against last year\u2019s. Prior from '+esc(p.how)+'.'
+    +(anyInc?' <b>The change column is recruiting ratings only</b> \u2014 '
+      +'that is what the rating uses. A player who produced elsewhere '
+      +'last season but was never rated counts as replacement level '
+      +'here however well he played, so <i>Incoming</i> marks the rows '
+      +'where this comparison has a known blind spot. The table below '
+      +'names them.':'');
+}
+
+/* One cell: how many arrived in this group with prior production, and
+   the best of them. Only the unrated are called out -- a rated transfer
+   is already counted properly in the change column. */
+function incCell(rows){
+  if(!rows||!rows.length)return '<span class="dim">&mdash;</span>';
+  var unseen=rows.filter(function(r){return !r.rated;});
+  var best=rows.reduce(function(a,b){return b.prod>a.prod?b:a;});
+  if(!unseen.length)return '<span class="dim">'+rows.length+'</span>';
+  return '<b>'+unseen.length+'</b> <span class="dim">· '
+    +best.prod.toFixed(2)+'</span>';
+}
+
+/* The same position groups, scored on play instead of on recruiting.
+
+   This is the panel above's question asked the other way. The talent
+   panel is what the rating uses; this is what the players did, and the
+   gap between the two is the point of having both -- a room that signed
+   badly and played well shows up here and nowhere else.
+
+   Three things it has to say on the page rather than in a comment:
+
+   * It is NOT depth-weighted, because production coverage is partial.
+     The talent panel can order a depth chart because every player has a
+     recruiting rating; here roughly a fifth of the room is measured, so
+     weighting slot 1 at 1.000 would be a statement about who took snaps
+     last year rather than about who is better. Every row prints its own
+     coverage instead.
+   * Only QB, RB, WR and TE can appear. A play-by-play names a passer, a
+     rusher and a receiver and nobody else, so a line, a kicker and the
+     whole defence are absent rather than zero.
+   * The scale is tighter than the panel above. `prod_rating` shrinks a
+     short season toward the mean on purpose, so the league's own
+     standard deviation prints beside the table: a reader who has just
+     watched a talent row move thirty points will read three here as
+     nothing unless told what three is. */
+function renderPerf(rows){
+  var sec=document.getElementById('perfsec');
+  if(!rows||!rows.length){sec.style.display='none';return;}
+  sec.style.display='';
+  var prior=(D.perf_prior_year===null||D.perf_prior_year===undefined)
+    ?'last season':D.perf_prior_year;
+  var scale=Math.max.apply(null,rows.map(function(x){
+    return Math.abs(x.d||0);}));
+  if(!(scale>0))scale=1;
+  var meas=0,listed=0;
+  rows.forEach(function(x){meas+=x.n_scored;listed+=x.n_now;});
+
+  document.getElementById('perfhint').textContent=
+    'vs '+prior+' · '+meas+' of '+listed+' players measured'
+    +((D.perf_sd===null||D.perf_sd===undefined)?''
+      :' · league spread ±'+f1(D.perf_sd));
+
+  document.getElementById('perftbl').innerHTML=
+    '<table><thead><tr><th>Group</th>'
+    +'<th class="num">'+prior+'</th><th class="num">Now</th>'
+    +'<th class="num">Change</th><th style="width:38%">&nbsp;</th>'
+    +'<th class="num">Measured</th></tr></thead><tbody>'
+    +rows.map(function(x){
+      var d=x.d,has=(d!==null&&d!==undefined);
+      var w=has?Math.min(50,Math.abs(d)/scale*50):0;
+      var col=(has&&d>=0)?'var(--pos,#2F6B47)':'var(--neg,#B04343)';
+      /* Both ends set, for the reason deltaTable spells out: the site
+         shell's `.bar i{...left:0}` over-constrains a bar that names
+         only one edge, and the published build is where it shows. */
+      /* **A blank cell must say why it is blank.** Three of the first
+         reports against this panel were the same complaint -- a group
+         showing nothing and reading as broken data -- and all three
+         were a group with nobody measured in one of the two years.
+         An absence and a refusal render identically otherwise, and
+         only one of them is true. Same rule renderPos already follows
+         for a refused team. */
+      /* The OL row is the unit's own two seasons and its coverage
+         is linemen returning, not players measured. Marked, because a
+         column that means two different things in the same table and
+         says so nowhere is the kind of thing this project keeps
+         paying for. */
+      return '<tr><td>'+esc(x.g)+(x.unit?'<sup>&dagger;</sup>':'')+'</td>'
+        +'<td class="num dim">'+f1(x.prev)+'</td>'
+        +'<td class="num">'+f1(x.now)+'</td>'
+        +(has
+          ? '<td class="num '+(d>0?'pos':d<0?'neg':'dim')+'">'+sgn(d)+'</td>'
+            +'<td><span class="bar"><span class="mid"></span><i style="'
+            +(d>=0?'left:50%;right:auto;':'right:50%;left:auto;')
+            +'background:'+col+';width:'+w.toFixed(1)+'%"></i></span></td>'
+          : '<td class="dim" colspan="2" style="font-size:.85em">'
+            +esc(x.why||'no comparison')+'</td>')
+        +'<td class="num dim">'+x.n_scored+' of '+x.n_now
+          +(x.unit?' back':'')+'</td>'
+        +'</tr>';
+    }).join('')+'</tbody></table>';
+
+  document.getElementById('perfnote').innerHTML=
+    '<b>Not part of the rating.</b> The panel above is what the model '
+    +'uses; this is the same rooms scored on what their players did on '
+    +'a field, and the two disagreeing is information rather than an '
+    +'error. The prior column is <b>what this team\u2019s room actually '
+    +'produced that season</b> \u2014 whoever was doing it \u2014 and the '
+    +'current column is what the players now on the roster did last '
+    +'season, wherever they did it. So the change is what you are '
+    +'bringing in against what you had, and a room that returns '
+    +'everybody shows no movement. A <b>plain mean over the measured '
+    +'players, not '
+    +'depth-weighted</b> \u2014 coverage is partial, so ranking a depth '
+    +'chart by a number most of the room lacks would say more about who '
+    +'took snaps last year than about who is better. The offensive line '
+    +'and the place-kickers are absent rather than zero \u2014 a '
+    +'play-by-play never names a lineman, and field-goal accuracy did '
+    +'not survive its reliability test. <b>The four defensive rooms are '
+    +'a claim about the unit, not about any player in it</b>: a '
+    +'defender\u2019s own rating persists at +0.59 when he stays at the '
+    +'same school and +0.24 when he moves, so most of what looks like '
+    +'his skill is the defence he plays in \u2014 measured at room '
+    +'level, where it persists at +0.43, it is measuring something '
+    +'real. <b>\u2020 The offensive line row is different again</b>: '
+    +'no play-by-play ever names a lineman, so there is no such '
+    +'thing as what a new guard did at his old school. Both its '
+    +'columns are <i>this team\u2019s own line</i> \u2014 last season '
+    +'against the season before \u2014 and its coverage column counts '
+    +'<b>linemen returning</b> rather than players measured. It is '
+    +'built from sacks allowed, runs stuffed at or behind the line, '
+    +'and the line\u2019s own false starts and holds; there are no '
+    +'quarterback hits or pressures in this data, so sack rate is '
+    +'partly the quarterback. Production is shown on the '
+    +'composite\u2019s 0.70\u20131.00 range as percent-of-range, after '
+    +'subtracting opponent quality, and it measures the offence a '
+    +'player was part of as much as the player.';
+}
+
+/* Incoming production, and the three things this panel must say.
+
+   It is NOT a model input: swapping production ratings into the
+   composite moved prediction by -0.0061 MAE, 95% CI [-0.035, +0.024],
+   so it earned no place in the projection and was not given one.
+
+   It is NOT a recruiting estimate: among starting quarterbacks who
+   carry both, a recruiting rating and measured production correlate
+   +0.04.
+
+   And it measures the offence as much as the player -- completion
+   percentage depends on receivers, sack rate on a line the play text
+   never names. All three print under the table rather than in a
+   tooltip, because a number beside a player's name reads as a
+   judgement of him unless it says otherwise. */
+function renderNew(rows){
+  var sec=document.getElementById('newsec');
+  if(!rows||!rows.length){sec.style.display='none';return;}
+  sec.style.display='';
+  var unseen=rows.filter(function(r){return !r.rated;}).length;
+  document.getElementById('newhint').textContent=
+    rows.length+' with prior production'
+    +(unseen?' · '+unseen+' the composite cannot see':'');
+  document.getElementById('newtbl').innerHTML=
+    '<table><thead><tr><th>Player</th><th>Pos</th><th>From</th>'
+    +'<th class="num">Plays</th><th class="num">Production</th>'
+    +'<th class="num">Composite</th></tr></thead><tbody>'
+    +rows.map(function(r){
+      return '<tr><td>'+esc(r.name)+'</td>'
+        +'<td class="dim">'+esc(r.pos||r.role||'')+'</td>'
+        +'<td class="dim">'+esc(r.from)+'</td>'
+        +'<td class="num dim">'+r.ev+'</td>'
+        +'<td class="num"><b>'+r.prod.toFixed(3)+'</b></td>'
+        +'<td class="num">'
+          +((r.comp===null||r.comp===undefined)?'&mdash;':r.comp.toFixed(3))
+          +(r.rated?'':' <span class="dim">(floor)</span>')+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  document.getElementById('newnote').innerHTML=
+    '<b>Not part of the rating.</b> This team\u2019s projection is '
+    +'identical with or without this table \u2014 production ratings '
+    +'were tested in the composite and did not improve it. '
+    +'<b>Not a recruiting grade</b> either: among starting quarterbacks '
+    +'who carry both, the two correlate +0.04. Production is shown on '
+    +'the composite\u2019s 0.70\u20131.00 scale after subtracting '
+    +'opponent quality, and it measures the offence a player was part '
+    +'of as much as the player \u2014 the line is never named in a '
+    +'play-by-play.';
+}
+
+document.getElementById('badge').textContent=D.year+' · '+D.mode;
+document.getElementById('meta').textContent=
+  'Rating move per game = rating after minus rating before, both from the '
+  +'model’s own sequential update · generated '+D.generated;
+(function(){
+  var want=(CFB.params().team||'').replace(/ /g,'_').toLowerCase();
+  var pick=null;
+  if(want) for(var i=0;i<ordered.length;i++){
+    if(String(ordered[i].name).toLowerCase()===want){pick=ordered[i];break;}
+  }
+  choose(pick||ordered.slice().sort(function(a,b){return b.mu-a.mu;})[0]);
+}());
+
+}
+
+CFB.bootOnce({
+  active: 'team', view: 'team',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

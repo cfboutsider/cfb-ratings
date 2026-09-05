@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coaches &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}button{cursor:pointer}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}header h1 span{color:var(--gold)}
+.badge{font-family:'Barlow Condensed';font-size:13px;font-weight:600;
+  letter-spacing:.09em;background:var(--gold);color:#17241C;padding:3px 10px;border-radius:3px}
+main{max-width:1240px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+section>h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+section>h2::before{content:"";width:8px;height:8px;background:var(--gold)}
+section>h2 .hint{margin-left:auto;font-family:'Barlow';font-size:11.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400}
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;
+  border-bottom:1px solid var(--line);align-items:center}
+.filters input,.filters select{padding:7px 10px;border:1px solid var(--line-strong);
+  border-radius:6px;background:#fff}
+.filters input[type=search]{flex:1;min-width:160px}
+.chip{border:1px solid var(--line-strong);background:#fff;border-radius:999px;
+  padding:5px 12px;font-size:13px;font-weight:500;color:var(--muted)}
+.chip.on{color:#fff;border-color:transparent;background:var(--ink)}
+.flabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);font-weight:600}
+.note{padding:12px 16px;background:#FBF6E6;border-bottom:1px solid var(--line);
+  font-size:13px;color:#5A4A1F}
+.defs{padding:12px 16px;border-bottom:1px solid var(--line);font-size:12.5px;
+  color:var(--muted);display:grid;gap:6px}
+.defs b{color:var(--ink)}
+.star{color:#B8860B;font-weight:700}
+.tablewrap{max-height:66vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:10px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  padding:8px 7px;border-bottom:2px solid var(--line-strong);cursor:pointer}
+th:hover{color:var(--ink)}
+td{padding:6px 7px;border-bottom:1px solid var(--line)}
+.num{text-align:right;font-weight:600;white-space:nowrap}
+.dim{color:var(--muted);font-weight:400}
+.pos{color:var(--pos);font-weight:700}.neg{color:var(--neg);font-weight:700}
+.tag{font-size:10px;font-weight:600;letter-spacing:.04em;border-radius:3px;
+  padding:2px 6px;background:#EDF1EA;color:var(--muted);white-space:nowrap}
+.bar{position:relative;height:11px;background:#EDF1EA;border-radius:3px;
+  display:inline-block;width:100%;min-width:70px;vertical-align:middle}
+.bar i{position:absolute;top:0;height:11px;border-radius:3px}
+.mid{position:absolute;left:50%;top:-2px;width:1px;height:15px;background:var(--line-strong)}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+footer{padding:18px 20px;color:var(--muted);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Coaching <span>Board</span></h1>
+  <span class="badge" id="badge">—</span>
+</div>
+
+<main>
+  <section>
+    <div class="note">
+      <b>Two different numbers, and only one is about coaching.</b>
+      <b>Coach effect</b> is the season&rsquo;s Move, standardised and shrunk
+      by tenure &mdash; that is the coaching one, and what this table
+      sorts by. <b>Neither number is purely coaching.</b><button
+        class="cfb-i" type="button" data-more="co-i-gap"
+        aria-expanded="false" aria-label="More about this">i</button>
+      <span class="cfb-more" id="co-i-gap" hidden>
+      <b>Gap</b> is End minus Talent: how far a program rates beyond what
+      its roster predicted. Coach effect is standardised within its season
+      and division and shrunk by how many seasons the coach has on record.
+      A team can carry a large Gap while its coach effect is negative:
+      South Dakota State rated 379 points above its roster in 2025 and
+      still fell 126 points across the year. Both numbers bundle scheme
+      fit, player development, health, continuity and luck.
+      Tenure is also selected: coaches with long tenure are coaches who
+      won, so it will look causal when it is partly survivorship. Read
+      it as &ldquo;where a coaching story would be if there is one&rdquo;,
+      not as the story itself.</span>
+    </div>
+    <div class="defs" id="defs"></div>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search coach, team, coordinator…">
+      <select id="conf"><option value="">All conferences</option></select>
+      <span class="flabel">Division</span><span id="divs"></span>
+      <span class="flabel">Show</span><span id="only"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Coaches <span class="hint" id="hint"></span></h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-k="team">Team</th>
+          <th data-k="coach">Head coach</th>
+          <th class="num" data-k="tenure" title="Seasons in charge, this season inclusive">Yrs</th>
+          <th class="num" data-k="rating_start" title="Competitiveness going into the season">Start</th>
+          <th class="num" data-k="rating_end" title="Competitiveness after the last game">End</th>
+          <th class="num" data-k="season_move" title="End minus Start. The season's movement, in rating points.">Move</th>
+          <th class="num" data-k="talent_pred" title="What the talent model predicted this roster was worth">Talent</th>
+          <th class="num" data-k="talent_gap" title="End minus Talent. How far the team rates beyond its roster -- NOT a coach rating.">Gap</th>
+          <th class="num" data-k="coach_effect" title="Season move, standardised within season and division and shrunk by sample size. The coaching quantity, in standard deviations.">Coach effect</th>
+          <th style="width:100px"></th>
+          <th class="num" data-k="pass_pct" title="Pass tendency, as a percentile within this season and division. Replaces the old scheme label: cluster assignments were measured at chance agreement across seasons (adjusted Rand 0.056) while the tendency itself persists at r=0.57.">Pass %ile</th>
+          <th class="num" data-k="explosive" title="Offence: share of neutral-script snaps gaining 15+ yards.">Expl</th>
+          <th class="num" data-k="explosive_allowed" title="Defence: share of snaps faced that gained 15+ yards. Read it beside Bend -- alone it penalises aggressive coordinators.">Expl allw</th>
+          <th class="num" data-k="bend_pct" title="Bend index percentile. High = concedes short gains but prevents long ones (two-high, keep it in front). Low = gambles, gives up chunks. Standardised within division, so a uniformly good defence sits near the middle.">Bend</th>
+          <th class="num" data-k="intent" title="Intended pass rate: pass share pooled over every neutral-script snap of the season. What they want to do.">Intent</th>
+          <th class="num" data-k="actual" title="Realised pass rate: the average across games of that game's neutral-script pass share. What they actually did.">Actual</th>
+          <th class="num" data-k="disruption" title="Actual minus Intent, exactly. Positive = threw more than the season plan; negative = ran more.">Disrupt</th>
+          <th data-k="oc">Coordinators (OC / DC)</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/coaches.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+var C = D.coaches;
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function f1(n){return (n===null||n===undefined)?'—':(Math.round(n*10)/10).toFixed(1);}
+function sgn(n){return (n===null||n===undefined)?'—':((n>=0?'+':'')+f1(n));}
+function pct(n){return (n===null||n===undefined)?'—':(100*n).toFixed(0)+'%';}
+function pct1(n){return (n===null||n===undefined)?'—':(100*n).toFixed(1)+'%';}
+
+/* A coordinator cell carries two facts beyond the name: whether he is
+   new, and whether he is also the head coach. Both change how the
+   play-calling fingerprint should be read, so neither belongs in a
+   tooltip only. The star is deliberately absent -- rather than shown as
+   "returning" -- when there is no prior snapshot to compare against. */
+function coord(name,isNew,isHc){
+  if(!name)return '<span class="dim">—</span>';
+  var out=esc(name);
+  if(isNew===true)out+='<span class="star" title="New this year">*</span>';
+  if(isHc)out+=' <span class="tag">HC</span>';
+  return out;}
+
+var divFilter={}, confFilter='', query='', only='all', sortK='coach_effect', sortDir=-1;
+D.divisions.forEach(function(d){divFilter[d]=true;});
+
+var divWrap=document.getElementById('divs');
+D.divisions.forEach(function(d){
+  var b=document.createElement('button');b.className='chip on';b.textContent=d;
+  b.onclick=function(){divFilter[d]=!divFilter[d];
+    b.classList.toggle('on',divFilter[d]);render();};
+  divWrap.appendChild(b);});
+
+[['all','All'],['resid','Has coach effect'],['style','Has style'],
+ ['interim','Interim / changed']].forEach(function(s){
+  var b=document.createElement('button');
+  b.className='chip'+(s[0]==='all'?' on':'');b.textContent=s[1];
+  b.onclick=function(){only=s[0];
+    document.getElementById('only').querySelectorAll('.chip')
+      .forEach(function(c){c.classList.remove('on');});
+    b.classList.add('on');render();};
+  document.getElementById('only').appendChild(b);});
+
+var confSel=document.getElementById('conf');
+[...new Set(C.map(function(c){return c.conference;}).filter(Boolean))].sort()
+  .forEach(function(c){var o=document.createElement('option');
+    o.value=c;o.textContent=c;confSel.appendChild(o);});
+confSel.onchange=function(){confFilter=confSel.value;render();};
+document.getElementById('q').oninput=function(e){
+  query=e.target.value.toLowerCase();render();};
+
+document.querySelectorAll('th[data-k]').forEach(function(th){
+  th.onclick=function(){
+    var k=th.dataset.k;
+    if(sortK===k)sortDir=-sortDir;else{sortK=k;sortDir=-1;}
+    render();};});
+
+
+function pctl(o,k){
+  if(!o||o[k]===null||o[k]===undefined)return '—';
+  return Math.round(o[k]);
+}
+function rate(o,k){
+  if(!o||o[k]===null||o[k]===undefined)return '—';
+  return (o[k]*100).toFixed(1);
+}
+
+function val(c,k){
+  if(k==='pass_pct')return c.pass_identity?c.pass_identity.pass_pct:null;
+  if(k==='explosive')return c.pass_identity?c.pass_identity.explosive:null;
+  if(k==='explosive_allowed')return c.pass_identity?c.pass_identity.explosive_allowed:null;
+  if(k==='bend_pct')return c.pass_identity?c.pass_identity.bend_pct:null;
+  if(k==='intent')return c.game_deviation?c.game_deviation.intent:null;
+  if(k==='actual')return c.game_deviation?c.game_deviation.actual:null;
+  if(k==='disruption')return c.game_deviation?c.game_deviation.mean:null;
+  return c[k];
+}
+
+function visible(){
+  return C.filter(function(c){
+    if(c.division&&D.divisions.indexOf(c.division)>=0&&!divFilter[c.division])
+      return false;
+    if(confFilter&&c.conference!==confFilter)return false;
+    if(only==='resid'&&c.coach_effect===null)return false;
+    if(only==='style'&&!c.pass_identity)return false;
+    if(only==='interim'&&String(c.confidence).indexOf('current')===0)return false;
+    if(query){
+      var hay=[c.team,c.coach,c.oc,c.dc,c.st,c.conference]
+        .map(function(x){return String(x||'').toLowerCase();}).join(' ');
+      if(hay.indexOf(query)<0)return false;
+    }
+    return true;});
+}
+
+function render(){
+  var list=visible().slice();
+  list.sort(function(a,b){
+    var x=val(a,sortK),y=val(b,sortK);
+    if(x===null||x===undefined)return 1;
+    if(y===null||y===undefined)return -1;
+    if(typeof x==='string')return sortDir*String(y).localeCompare(String(x));
+    return sortDir*(x-y);});
+
+  // Residual bar scaled to the visible set, so filtering to one
+  // conference doesn't render every bar as a sliver.
+  var mx=Math.max.apply(null,list.map(function(c){
+    return Math.abs(c.coach_effect||0);}).concat([1]));
+
+  document.getElementById('hint').textContent =
+    list.length+' of '+C.length+' · '+D.n_with_residual+' with a residual · '
+    +D.n_with_style+' with a play-calling fingerprint';
+
+  document.getElementById('rows').innerHTML = list.length ? list.map(function(c){
+    var r=c.coach_effect, w=Math.abs(r||0)/mx*50;
+    return '<tr>'
+      +'<td>'+CFB.teamLink(c.team_key||c.team, D.season)+' <span class="dim" style="font-size:11px">'
+        +esc(c.conference||'')+'</span></td>'
+      +'<td><b><a class="tm" href="'+CFB.root+'views/coaching.html?year='+encodeURIComponent(D.season)+'&team='+encodeURIComponent(c.team_key||c.team)+'">'+esc(c.coach||'—')+'</a></b>'
+        +(String(c.confidence).indexOf('interim')>=0
+          ? ' <span class="tag">interim</span>':'')
+        +(c.confidence==='in-season change'
+          ? ' <span class="tag">replaced</span>':'')+'</td>'
+      +'<td class="num dim">'+(c.tenure||'—')+'</td>'
+      +'<td class="num dim">'+f1(c.rating_start)+'</td>'
+      +'<td class="num">'+f1(c.rating_end)+'</td>'
+      +'<td class="num '+(c.season_move>0?'pos':c.season_move<0?'neg':'dim')+'">'
+        +sgn(c.season_move)+'</td>'
+      +'<td class="num dim">'+f1(c.talent_pred)+'</td>'
+      +'<td class="num dim">'+sgn(c.talent_gap)+'</td>'
+      +'<td class="num '+(r>0?'pos':r<0?'neg':'dim')+'">'
+        +(r===null||r===undefined?'—':(r>0?'+':'')+r.toFixed(2))+'</td>'
+      /* Both ends set explicitly -- see the same note in team.html. The
+         site shell's `.bar i{...left:0}` otherwise over-constrains a
+         negative bar, `right:50%` is dropped, and the coach_effect bar
+         draws from the left edge rightwards instead of from the centre
+         line leftwards. Same defect, same two pages, found on the team
+         view first. */
+      +'<td><span class="bar"><span class="mid"></span>'
+        +(r===null?'':'<i style="'
+          +(r>=0?'left:50%;right:auto;':'right:50%;left:auto;')
+          +'background:'+(r>=0?'var(--pos)':'var(--neg)')
+          +';width:'+w.toFixed(1)+'%"></i>')+'</span></td>'
+      +'<td class="num dim">'+pctl(c.pass_identity,'pass_pct')+'</td>'
+      +'<td class="num">'+rate(c.pass_identity,'explosive')+'</td>'
+      +'<td class="num">'+rate(c.pass_identity,'explosive_allowed')+'</td>'
+      +'<td class="num dim">'+pctl(c.pass_identity,'bend_pct')+'</td>'
+      +'<td class="num dim">'+(c.game_deviation?pct1(c.game_deviation.intent):'—')+'</td>'
+      +'<td class="num dim">'+(c.game_deviation?pct1(c.game_deviation.actual):'—')+'</td>'
+      +'<td class="num '+(c.game_deviation?(c.game_deviation.mean>0?'pos':c.game_deviation.mean<0?'neg':'dim'):'dim')+'">'
+        +(c.game_deviation?sgn(100*c.game_deviation.mean)+'pp':'—')+'</td>'
+      +'<td class="dim" style="font-size:12.5px">'
+        +coord(c.oc,c.oc_new,c.oc_is_hc)+' / '+coord(c.dc,c.dc_new,c.dc_is_hc)
+        +'</td>'
+      +'</tr>';
+  }).join('') : '<tr><td colspan="11" class="empty">No coaches match.</td></tr>';
+}
+
+(function(){
+  var starWhat = D.coord_baseline
+    ? 'the coordinator differs from the '+D.coord_baseline+' snapshot.'
+    : 'the head coach is in his first season, so the staff arrived with him. '
+      +'Wikipedia publishes only today\u2019s staff, so there is no earlier '
+      +'coordinator snapshot to diff against yet \u2014 this run saved one, '
+      +'and next season\u2019s will mark true coordinator-only changes.';
+  document.getElementById('defs').innerHTML =
+    '<div><b>Neutral script</b> \u2014 '+esc(D.neutral_script||'')+'. '
+      +'Filtering to these snaps is what separates what a team '
+      +'<i>intends</i> to do from what the scoreboard forced on it.</div>'
+    +'<div><b>Intent \u2192 Actual \u2192 Disrupt</b> \u2014 Disrupt is '
+      +'Actual minus Intent and nothing else, so the three columns '
+      +'reconcile exactly. Both rates are neutral-script only.</div>'
+    +'<div><b><span class="star">*</span></b> \u2014 '+starWhat+'</div>'
+    +'<div><b>Coordinators</b> are a snapshot as of '
+      +(D.coord_asof||'the latest scrape')
+      +', not necessarily the staff in '+D.season+'. '
+      +'<span class="tag">HC</span> marks a head coach calling that side himself.</div>';
+})();
+document.getElementById('badge').textContent=D.season+' season';
+document.getElementById('meta').textContent=
+  'Head coaches and coordinators compiled from Wikipedia; residual from the '
+  +'talent model; style from play-by-play · generated '+D.generated;
+render();
+
+}
+
+CFB.bootOnce({
+  active: 'coaches', view: 'coaches',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

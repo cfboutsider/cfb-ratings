@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poaching Board &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+/* Every class prefixed `pb-`. Unprefixed `.note` and `.lede` collided
+   with cfb.css once and the collision was invisible until a rebuild
+   moved the stylesheet order. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+.pb-badge{font-size:12.5px;color:#9FB3A4;letter-spacing:.04em}
+.pb-ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.pb-ctl input,.pb-ctl select{padding:7px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+main{max-width:1180px;margin:0 auto;padding:20px}
+section{background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:16px 18px;margin-bottom:18px}
+h2{font-size:17px;margin-bottom:4px}
+.pb-hint{font-size:12.5px;color:var(--muted);text-transform:none;
+  font-family:'Barlow',sans-serif;letter-spacing:0;font-weight:400}
+.pb-dim{color:var(--muted)}
+.pb-note{font-size:13px;color:var(--muted);line-height:1.65}
+.pb-gate{border-left:3px solid var(--neg);padding-left:12px;
+  background:#FBF4F4;padding:10px 12px;border-radius:0 6px 6px 0}
+.pb-retro{border-left:3px solid var(--gold);padding-left:12px}
+.pb-rel{width:100%;border-collapse:collapse;font-size:12.5px;
+  margin-top:10px}
+.pb-rel th,.pb-rel td{padding:4px 8px;border-bottom:1px solid var(--line);
+  text-align:right;white-space:nowrap}
+.pb-rel th:first-child,.pb-rel td:first-child{text-align:left}
+.pb-rel th{color:var(--muted);text-transform:uppercase;font-size:11px}
+.pb-no{color:var(--neg);font-weight:600}
+.pb-yes{color:var(--pos);font-weight:600}
+.pb-card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;
+  margin-bottom:10px;background:#fff}
+.pb-top{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.pb-team{font-family:'Barlow Condensed',sans-serif;font-size:19px;
+  font-weight:700;text-transform:uppercase}
+.pb-staff{font-size:13.5px}
+.pb-staff b{font-weight:600}
+.pb-nums{margin-left:auto;display:flex;gap:16px;text-align:right}
+.pb-num{min-width:84px}
+.pb-num i{display:block;font-style:normal;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.pb-num b{font-size:19px;font-weight:600;
+  font-family:'Barlow Condensed',sans-serif}
+.pb-of{font-size:13px;font-weight:400;color:var(--muted)}
+.pb-pill{display:inline-block;padding:1px 7px;border-radius:9px;
+  font-size:11.5px;background:var(--line);color:var(--muted);
+  white-space:nowrap}
+.pb-pill.pb-was{background:#F6EBCF;color:#7A5B10}
+.pb-tw{overflow-x:auto;margin-top:10px}
+.pb-pl{width:100%;border-collapse:collapse;font-size:13.5px}
+.pb-pl th,.pb-pl td{padding:4px 8px;border-bottom:1px solid var(--line);
+  text-align:left;white-space:nowrap}
+.pb-pl th{font-size:11px;text-transform:uppercase;color:var(--muted);
+  letter-spacing:.03em}
+.pb-pl td.pb-n,.pb-pl th.pb-n{text-align:right}
+.pb-none{font-size:12.5px;color:var(--muted);margin-top:8px}
+.pb-more{margin-top:10px;font-size:13px}
+.pb-more button{padding:6px 12px;border-radius:6px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;color:var(--ink)}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 34px;
+  font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Poaching <span>Board</span></h1>
+  <span class="pb-badge" id="pb-badge"></span>
+  <div class="pb-ctl">
+    <input id="pb-find" placeholder="coach, team…" size="18">
+    <select id="pb-div"><option value="">All divisions</option></select>
+    <select id="pb-has">
+      <option value="1">With eligible players</option>
+      <option value="">Every staff</option>
+    </select>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2>What the two numbers are
+        <span class="pb-hint">read this before comparing levels</span></h2>
+    <p class="pb-note" id="pb-note"></p>
+  </section>
+
+  <section>
+    <h2>Why the coach column does not sort
+        <span class="pb-hint">the gate, and what it found</span></h2>
+    <p class="pb-note pb-gate" id="pb-verdict"></p>
+    <div id="pb-relbox"></div>
+  </section>
+
+  <section>
+    <h2>Checked against what happened
+        <span class="pb-hint">the 2025&ndash;26 coaching cycle</span></h2>
+    <p class="pb-note pb-retro" id="pb-retro"></p>
+  </section>
+
+  <section>
+    <h2>Staffs <span class="pb-hint" id="pb-cnt"></span></h2>
+    <div id="pb-out"></div>
+    <div class="pb-more"><button id="pb-more">Show more</button></div>
+  </section>
+</main>
+<footer id="pb-meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/poach_board.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+var PAGE = 25, shown = PAGE;
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function n1(v){return (v===null||v===undefined)?'—':v.toFixed(1);}
+
+(function init(){
+  document.getElementById('pb-badge').textContent =
+    D.year+' preview · offence measured on '+D.prod_year+' play-by-play';
+  document.getElementById('pb-note').textContent = D.note;
+  document.getElementById('pb-verdict').textContent = D.gate;
+  document.getElementById('pb-retro').textContent = D.retro;
+  document.getElementById('pb-meta').textContent = 'generated '+D.generated;
+
+  /* The reliability table is rendered from the test's own output, not
+     retyped. A number retyped into a page is a number that goes stale
+     silently the next time the test runs. */
+  var box = document.getElementById('pb-relbox');
+  var labels = {all:'season to season, any',
+                stayed:'same school — a fact about the programme',
+                moved:'CHANGED SCHOOL — the one that counts'};
+  var html = '<table class="pb-rel"><thead><tr><th>Test</th><th>n</th>'
+    + '<th>r</th><th>95% interval</th><th>Spearman-Brown</th>'
+    + '<th>Rankable</th></tr></thead><tbody>';
+  ['head_coach','off_coordinator'].forEach(function(role){
+    var R = (D.reliability||{})[role]; if(!R) return;
+    html += '<tr><td colspan="6"><b>'
+      + (role==='head_coach'?'Head coach':'Offensive coordinator')
+      + '</b></td></tr>';
+    ['all','stayed','moved'].forEach(function(k){
+      var x = R[k]; if(!x) return;
+      html += '<tr><td class="pb-dim">&nbsp;&nbsp;'+labels[k]+'</td>'
+        + '<td>'+x.n+'</td>'
+        + '<td>'+(x.r===null?'—':(x.r>0?'+':'')+x.r.toFixed(3))+'</td>'
+        + '<td class="pb-dim">'+(x.ci?('['+(x.ci[0]>0?'+':'')+x.ci[0].toFixed(3)
+            +', '+(x.ci[1]>0?'+':'')+x.ci[1].toFixed(3)+']'):'—')+'</td>'
+        + '<td>'+(x.sb===null?'—':x.sb.toFixed(3))+'</td>'
+        + '<td class="'+(x.rankable?'pb-yes':'pb-no')+'">'
+          +(x.rankable?'yes':'no')+'</td></tr>';
+    });
+  });
+  html += '</tbody></table>';
+  box.innerHTML = html;
+
+  var ds={};
+  D.rows.forEach(function(r){ if(r.div) ds[r.div]=1; });
+  var el=document.getElementById('pb-div');
+  Object.keys(ds).sort().forEach(function(k){
+    var o=document.createElement('option'); o.value=k; o.textContent=k;
+    el.appendChild(o);
+  });
+  ['pb-find','pb-div','pb-has'].forEach(function(id){
+    var e=document.getElementById(id);
+    e.addEventListener('input', function(){shown=PAGE;draw();});
+    e.addEventListener('change', function(){shown=PAGE;draw();});
+  });
+  document.getElementById('pb-more').addEventListener('click', function(){
+    shown += PAGE; draw();
+  });
+  draw();
+})();
+
+function rows(){
+  var f=document.getElementById('pb-find').value.toLowerCase();
+  var dv=document.getElementById('pb-div').value;
+  var hs=document.getElementById('pb-has').value;
+  return D.rows.filter(function(r){
+    if(dv && r.div!==dv) return false;
+    if(hs==='1' && !r.players.length) return false;
+    if(f && (r.team+' '+r.hc+' '+r.oc).toLowerCase().indexOf(f)<0)
+      return false;
+    return true;
+  });
+}
+
+/* Ordered by the unit score, which is NOT the same as offering a sort:
+   the reader cannot re-sort, and the order is stated as "how the list
+   is arranged" rather than as a ranking the reliability does not
+   support. If `sortable` ever becomes non-empty the controls appear. */
+function draw(){
+  var r = rows();
+  document.getElementById('pb-cnt').textContent =
+    r.length + ' shown, arranged by unit score'
+    + (D.sortable && D.sortable.length ? ' · sortable' : ' · not sortable');
+  var slice = r.slice(0, shown);
+  document.getElementById('pb-out').innerHTML = slice.map(function(x){
+    var pl = x.players.length
+      ? '<div class="pb-tw"><table class="pb-pl"><thead><tr>'
+        + '<th>Player</th><th>Pos</th><th>Role</th><th>Class</th>'
+        + '<th class="pb-n">Events</th><th class="pb-n">Production</th>'
+        + '</tr></thead><tbody>'
+        + x.players.map(function(p){
+            return '<tr><td><b>'+esc(p.name)+'</b></td>'
+              +'<td class="pb-dim">'+esc(p.pos)+'</td>'
+              +'<td class="pb-dim">'+esc(p.role)+'</td>'
+              +'<td class="pb-dim">'+esc(p.cls)+'</td>'
+              +'<td class="pb-n pb-dim">'+p.ev+'</td>'
+              +'<td class="pb-n"><b>'+n1(p.t)+'</b></td></tr>';
+          }).join('')
+        + '</tbody></table></div>'
+      : '<div class="pb-none">No producer on this roster has a season '
+        + 'left after '+D.year+'.</div>';
+    return '<div class="pb-card"><div class="pb-top">'
+      + '<span class="pb-team">'+esc(x.team)+'</span>'
+      + '<span class="pb-pill">'+esc(x.div)+'</span>'
+      /* A unit score earned somewhere else, shown beside this team's
+         name, is a silent claim about this team. Name the source. */
+      + (x.was && x.was.length
+          ? '<span class="pb-pill pb-was">number earned at '
+            + esc(x.was.join(', ')) + '</span>' : '')
+      + '<span class="pb-staff">HC <b>'+esc(x.hc)+'</b>'
+        + (x.oc && x.oc!==x.hc ? ' · OC <b>'+esc(x.oc)+'</b>' : '')
+      + '</span>'
+      + '<span class="pb-nums">'
+        + '<span class="pb-num"><i>Unit</i><b>'+n1(x.t)+'</b></span>'
+        + '<span class="pb-num"><i>Without top</i><b>'+n1(x.t1)+'</b>'
+          + (x.drop?'<i>'+esc(x.drop)+'</i>':'') + '</span>'
+        /* "Players 7" beside a four-row table reads as a bug. The two
+           counts are different things -- how many produced for the unit,
+           and how many of those are still here with time left -- so both
+           are shown rather than one being left to guess. */
+        + '<span class="pb-num"><i>Can follow</i><b>'
+          + x.players.length + '<span class="pb-of"> of '+x.np+'</span>'
+          + '</b><i>scored in unit</i></span>'
+      + '</span></div>' + pl + '</div>';
+  }).join('');
+  document.getElementById('pb-more').style.display =
+    (shown < r.length) ? '' : 'none';
+}
+
+}
+
+CFB.bootOnce({
+  active: 'poach', view: 'poach',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

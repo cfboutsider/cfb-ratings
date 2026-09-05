@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCSR &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+#badge{font-size:12.5px;color:#9FB3A4;letter-spacing:.04em}
+.ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ctl input,.ctl select{padding:7px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+.ctl label{font-size:12.5px;color:#9FB3A4;display:flex;gap:5px;
+  align-items:center}
+main{max-width:1180px;margin:0 auto;padding:20px}
+section{background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:16px 18px;margin-bottom:18px}
+h2{font-size:17px;margin-bottom:4px}
+.hint{font-size:12.5px;color:var(--muted);text-transform:none;
+  font-family:'Barlow',sans-serif;letter-spacing:0;font-weight:400}
+.dim{color:var(--muted)}
+.ccsr-tw{overflow-x:auto}
+#tbl{max-height:72vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;
+  white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--muted);cursor:pointer;user-select:none}
+th.num,td.num{text-align:right}
+tbody tr:hover{background:#EFF4EC}
+tr.island td{background:#F6F2E4}
+.flag{display:inline-block;padding:1px 6px;border-radius:9px;font-size:11px;
+  background:var(--gold);color:#2A2206;font-weight:600;margin-left:6px}
+.up{color:var(--pos);font-weight:600}
+.down{color:var(--neg);font-weight:600}
+.ccsr-note{font-size:13.5px;color:var(--muted);line-height:1.7;
+  white-space:pre-wrap;max-width:76ch}
+.warn{border-left:3px solid var(--gold);padding-left:12px;
+  max-width:none}
+.ccsr-cards{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 4px}
+.card{flex:1 1 150px;background:var(--paper);border:1px solid var(--line);
+  border-radius:8px;padding:10px 12px}
+.card b{display:block;font-size:22px;font-family:'Barlow Condensed',sans-serif}
+.card small{color:var(--muted);font-size:12px}
+.verdict{background:#EFF4EC;border:1px solid var(--line-strong);
+  border-radius:8px;padding:11px 13px;font-size:13.5px;line-height:1.65;
+  color:var(--ink)}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 34px;
+  font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>CC<span>SR</span></h1>
+  <span id="badge"></span>
+  <div class="ctl">
+    <input id="find" placeholder="filter teams…" size="16">
+    <select id="div"><option value="">All divisions</option></select>
+    <select id="conf"><option value="">All conferences</option></select>
+    <label><input type="checkbox" id="mainonly" checked> mainland only</label>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2>What this is
+        <span class="hint">read this before comparing the two columns</span></h2>
+    <p class="ccsr-note" id="note"></p>
+  </section>
+
+  <section id="weekbox">
+    <h2>How it actually scores
+        <span class="hint">refit weekly, forward only — the comparable number</span></h2>
+    <div id="weekly"></div>
+  </section>
+
+  <section id="islandbox">
+    <h2>Not comparable to the rest
+        <span class="hint">these ratings come from an assumption, not a result</span></h2>
+    <p class="ccsr-note warn" id="islandnote"></p>
+    <div id="islands"></div>
+  </section>
+
+  <section>
+    <h2>Teams <span class="hint" id="cnt"></span></h2>
+    <div class="ccsr-tw" id="tbl"></div>
+  </section>
+</main>
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/ccsr.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function f1(n){return (n===null||n===undefined)?'—':
+  ((n>0?'+':'')+(Math.round(n*10)/10).toFixed(1));}
+function pc(n){return (n===null||n===undefined)?'—':
+  (Math.round(n*1000)/10).toFixed(1)+'%';}
+
+var sortKey='ccsr', sortDir=-1;
+var fDiv='', fConf='', fText='', mainOnly=true;
+
+(function init(){
+  document.getElementById('badge').textContent =
+    D.year+' · '+D.n_teams+' teams · '+D.n_mainland+' on the mainland';
+  document.getElementById('note').textContent = D.note;
+  document.getElementById('meta').textContent = 'generated '+D.generated
+    +' · nothing on this page enters the published rating';
+  var ds={}, cs={};
+  D.teams.forEach(function(t){ if(t.division)ds[t.division]=1;
+                               if(t.conference)cs[t.conference]=1; });
+  fill('div', ds); fill('conf', cs);
+  ['find','div','conf'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', read);
+    document.getElementById(id).addEventListener('change', read);
+  });
+  document.getElementById('mainonly').addEventListener('change', read);
+  drawWeekly(); drawIslands(); draw();
+})();
+
+function fill(id, obj){
+  var el=document.getElementById(id);
+  Object.keys(obj).sort().forEach(function(k){
+    var o=document.createElement('option'); o.value=k; o.textContent=k;
+    el.appendChild(o);
+  });
+}
+function read(){
+  fText=document.getElementById('find').value.toLowerCase();
+  fDiv=document.getElementById('div').value;
+  fConf=document.getElementById('conf').value;
+  mainOnly=document.getElementById('mainonly').checked;
+  draw();
+}
+
+/* The forward numbers. If the weekly refit has not been run this panel
+   removes itself rather than showing the season-long figure in its
+   place -- the whole point of the panel is that the two are different
+   questions, so falling back to the other one would be the exact
+   mistake it exists to prevent. */
+function drawWeekly(){
+  var w=D.weekly;
+  if(!w){ document.getElementById('weekbox').style.display='none'; return; }
+  var h='<div class="ccsr-cards">'
+    +card(pc(w.ccsr.winners),'CCSR winners, weeks '+w.start_week+'+')
+    +card(pc(w.seq.winners),'published model, same games')
+    +card(w.ccsr.mae.toFixed(2),'CCSR mean error, points')
+    +card(w.seq.mae.toFixed(2),'published model, points')
+    +card(pc(w.home_always.winners),'“home team always”')
+    +'</div>'
+    +'<p class="verdict">Across '+w.n.toLocaleString()+' games in '+D.year
+    +' these two are a tie. CCSR calls slightly more winners and has '
+    +'slightly worse average error, and across the two seasons measured '
+    +'neither difference is distinguishable from chance. Treat them as '
+    +'two readings of the same season rather than a better and a worse '
+    +'one.</p>';
+
+  if(w.buckets && w.buckets.length){
+    h+='<div class="ccsr-tw"><table><thead><tr>'
+      +'<th>When</th><th class="num">Games</th><th class="num">CCSR</th>'
+      +'<th class="num">Published</th><th class="num">Diff</th></tr></thead>'
+      +'<tbody>'
+      +w.buckets.map(function(b){
+        var d = b.ccsr - b.seq;   /* spaced: b.ccsr-b reads as a class */
+        return '<tr'+(b.postseason?' class="island"':'')+'>'
+          +'<td>'+esc(b.label)+((b.postseason && d>0.01)?
+             '<span class="flag">CCSR ahead</span>':'')+'</td>'
+          +'<td class="num dim">'+b.n.toLocaleString()+'</td>'
+          +'<td class="num">'+pc(b.ccsr)+'</td>'
+          +'<td class="num">'+pc(b.seq)+'</td>'
+          +'<td class="num '+(d>0.005?'up':d<-0.005?'down':'dim')+'">'
+          +((d>0?'+':'')+(Math.round(d*1000)/10).toFixed(1))+'</td></tr>';
+      }).join('')
+      +'</tbody></table></div>'
+      +'<p class="ccsr-note">Buckets are by how much football has been played, '
+      +'not by the calendar, because the question is whether CCSR needs '
+      +'results before it is any good — and a calendar bucket mixes a '
+      +'team on its bye with a team on its ninth start.\n\n'
+      +'No regular-season bucket shows a difference that survives a '
+      +'test. The postseason is the one that does, but only when the two '
+      +'seasons measured are pooled: together, about 460 bowl and '
+      +'playoff games, CCSR calls 72.8% of winners against 69.4%, and '
+      +'the gap holds when the weighting is chosen on one season and '
+      +'spent on the other. A single season’s postseason row above is '
+      +'roughly 230 games and will not show that on its own. The likely '
+      +'reason is that bowls and playoffs are cross-conference matchups '
+      +'between teams that never met, which is exactly what a '
+      +'whole-season equilibrium is for.</p>';
+  }
+  document.getElementById('weekly').innerHTML=h;
+}
+function card(v,l){return '<div class="card"><b>'+v+'</b><small>'
+  +esc(l)+'</small></div>';}
+
+function drawIslands(){
+  if(!D.islands || !D.islands.length){
+    document.getElementById('islandbox').style.display='none'; return; }
+  document.getElementById('islandnote').textContent = D.island_note;
+  document.getElementById('islands').innerHTML =
+    '<div class="ccsr-tw"><table><thead><tr><th>Group</th>'
+    +'<th class="num">Teams</th><th>For example</th></tr></thead><tbody>'
+    +D.islands.map(function(i){
+      return '<tr><td>'+esc(i.divisions.join(', ')||'—')+'</td>'
+        +'<td class="num">'+i.n+'</td>'
+        +'<td class="dim">'+esc(i.examples.join(', ').replace(/_/g,' '))
+        +'</td></tr>';}).join('')
+    +'</tbody></table></div>';
+}
+
+function rows(){
+  return D.teams.filter(function(t){
+    if(mainOnly && t.island) return false;
+    if(fDiv && t.division!==fDiv) return false;
+    if(fConf && t.conference!==fConf) return false;
+    if(fText && String(t.name).toLowerCase().indexOf(fText)<0) return false;
+    return true;
+  });
+}
+
+/* The gap column is a REGRESSION RESIDUAL, not a subtraction, and the
+   first build of this page proved why it has to be.
+
+   Both columns are points of margin, so differencing them looks
+   correct. It is not: CCSR is fitted against tanh-compressed margins
+   and pulled toward a prior, so its spread is ~15% narrower
+   (ccsr = 0.854 * seq on 2025). A raw difference is therefore mostly
+   (1 - 0.854) * seq -- a rescaled copy of the published rating wearing
+   a finding's clothes. It rendered as Indiana -15.8, Ohio St -18.2,
+   Notre Dame -16.9: every good team "underrated by CCSR", ordered by
+   nothing but strength. Same trap the talent board documents, new page.
+
+   The exporter removes the scale difference first, so what survives
+   here is genuine disagreement about a team. */
+function draw(){
+  var r = rows().slice();
+  r.sort(function(a,b){
+    var x=a[sortKey], y=b[sortKey];
+    if(x===null||x===undefined) return 1;
+    if(y===null||y===undefined) return -1;
+    return (x<y?-1:x>y?1:0)*sortDir;
+  });
+  document.getElementById('cnt').textContent =
+    r.length+' of '+D.teams.length+' shown · click a header to sort'
+    +(D.agreement.pearson!==null
+      ? ' · the two columns correlate '+D.agreement.pearson
+        +' · gap is scale-corrected, spread '+D.agreement.sd_ccsr
+        +' vs '+D.agreement.sd_seq : '');
+
+  var head=[['name','Team'],['division','Div'],['conference','Conference'],
+            ['w','Rec'],['ccsr','CCSR'],['seq','Published'],['gap','Gap']];
+  var html='<table><thead><tr>'
+    +head.map(function(h){
+      var num=(h[0]!=='name'&&h[0]!=='division'&&h[0]!=='conference');
+      return '<th class="'+(num?'num':'')+'" data-k="'+h[0]+'">'+h[1]
+        +(sortKey===h[0]?(sortDir<0?' ▾':' ▴'):'')+'</th>';}).join('')
+    +'</tr></thead><tbody>'
+    +r.map(function(t){
+      var cls=t.gap===null?'dim':t.gap>2?'up':t.gap<-2?'down':'dim';
+      return '<tr'+(t.island?' class="island"':'')+'>'
+        +'<td><b>'+esc(String(t.name).replace(/_/g,' '))+'</b>'
+          +(t.island?'<span class="flag">not comparable</span>':'')+'</td>'
+        +'<td class="dim">'+esc(t.division)+'</td>'
+        +'<td class="dim">'+esc(t.conference)+'</td>'
+        +'<td class="num dim">'+(t.w===null?'—':t.w+'-'+t.l)+'</td>'
+        +'<td class="num"><b>'+f1(t.ccsr)+'</b></td>'
+        +'<td class="num">'+f1(t.seq)+'</td>'
+        +'<td class="num '+cls+'">'+f1(t.gap)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  var box=document.getElementById('tbl');
+  box.innerHTML=html;
+  Array.prototype.forEach.call(box.querySelectorAll('th[data-k]'),
+    function(th){
+      th.addEventListener('click', function(){
+        var k=th.getAttribute('data-k');
+        if(k===sortKey){ sortDir=-sortDir; } else { sortKey=k; sortDir=-1; }
+        draw();
+      });
+    });
+}
+
+}
+
+CFB.bootOnce({
+  active: 'ccsr', view: 'ccsr',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

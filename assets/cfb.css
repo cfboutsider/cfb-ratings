@@ -1,0 +1,421 @@
+/* The design system, once.
+ *
+ * Six of the seven dashboards had their own copy of this block. They
+ * were not quite identical, which is the whole problem: a palette
+ * duplicated six times is a palette that drifts one hex digit at a
+ * time and nobody notices, because nobody opens two dashboards side by
+ * side and compares backgrounds.
+ *
+ * The talent console is deliberately NOT folded in here. It is not a
+ * drifted copy of this system, it is a different one -- teal and amber
+ * against this one's green and gold, with its own variable names. It
+ * also carries licensed data and so is excluded from the public build
+ * entirely. Reconciling it can wait until it has somewhere to go.
+ */
+
+:root{
+  --paper:#F2F5EF; --panel:#FBFCF9; --ink:#17241C; --muted:#5C6B5F;
+  --field:#2F6B47; --gold:#D9A422; --line:#D9E1D6; --line-strong:#BFCBBC;
+  --pos:#2F6B47; --neg:#B04343;
+  --exp:#8A6D3B; --int:#3E6E8E; --act:#2F6B47;
+  --aq:#8A6D3B; --bye:#3E6E8E;
+  --nav:#17241C; --nav-ink:#EDF3EC; --nav-dim:#8FA394; --nav-line:#3C4C41;
+  --shell-max:1240px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:var(--paper); color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+}
+
+h1,h2,h3{
+  font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em; text-transform:uppercase;
+}
+a{color:var(--field)}
+button,select,input{font:inherit}
+
+/* ---------------------------------------------------------------- nav */
+.sitebar{
+  background:var(--nav); color:var(--nav-ink);
+  border-bottom:3px solid var(--gold);
+  position:sticky; top:0; z-index:40;
+}
+.sitebar .inner{
+  max-width:var(--shell-max); margin:0 auto; padding:0 20px;
+  display:flex; align-items:center; gap:8px 22px; flex-wrap:wrap;
+  min-height:52px;
+}
+.sitebar .brand{
+  font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700;
+  letter-spacing:.03em; text-transform:uppercase;
+  color:var(--nav-ink); text-decoration:none; white-space:nowrap;
+}
+.sitebar .brand span{color:var(--gold)}
+.sitebar nav{display:flex; gap:2px; flex-wrap:wrap; margin-left:6px}
+.sitebar nav .grp{position:relative}
+.sitebar nav a,.sitebar nav .top{
+  display:block; padding:15px 11px; font-size:13.5px; color:var(--nav-dim);
+  text-decoration:none; white-space:nowrap; border-bottom:3px solid transparent;
+  margin-bottom:-3px; cursor:pointer;
+}
+.sitebar nav a:hover,.sitebar nav .grp:hover .top{color:var(--nav-ink)}
+.sitebar nav a.on{color:var(--nav-ink); border-bottom-color:var(--gold)}
+.sitebar nav .grp.on .top{color:var(--nav-ink); border-bottom-color:var(--gold)}
+.sitebar nav .menu{
+  display:none; position:absolute; left:0; top:100%; min-width:214px;
+  background:var(--panel); border:1px solid var(--line-strong);
+  border-radius:0 0 6px 6px; box-shadow:0 10px 28px rgba(0,0,0,.28);
+  padding:4px 0; z-index:50;
+}
+.sitebar nav .grp:hover .menu{display:block}
+.sitebar nav .menu a{
+  color:var(--ink); padding:8px 13px; font-size:13.5px; border-bottom:0;
+  margin:0;
+}
+.sitebar nav .menu a:hover{background:#E7EEE4; color:var(--ink)}
+.sitebar nav .menu a.on{background:#E7EEE4; border-bottom:0}
+.sitebar nav .menu .note-h{
+  padding:6px 13px 5px; font-size:10px; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--muted);
+  border-bottom:1px solid var(--line);
+}
+.sitebar .right{margin-left:auto; display:flex; align-items:center; gap:10px}
+.sitebar select{
+  background:#243329; color:var(--nav-ink); border:1px solid var(--nav-line);
+  border-radius:6px; padding:6px 9px; font-size:13.5px;
+}
+.sitebar .lab{font-size:11px; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--nav-dim)}
+
+/* ------------------------------------------------------------- rail */
+/* Fixed rather than a flex sibling, so adding it to a view is one
+ * injected <aside> and a body class -- no restructuring of nine pages
+ * that each lay their own content out differently. */
+.rail{
+  position:fixed; left:0; top:52px; bottom:0; width:214px; z-index:20;
+  background:var(--panel); border-right:1px solid var(--line);
+  overflow-y:auto; padding:10px 0 28px;
+}
+.rail-h{
+  font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; color:var(--ink);
+  padding:6px 14px 10px;
+}
+.rail-g{
+  font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); padding:12px 14px 5px; border-top:1px solid var(--line);
+  margin-top:6px;
+}
+.rail details{border-bottom:1px solid var(--line)}
+.rail summary{
+  list-style:none; cursor:pointer; padding:8px 14px; font-size:13.5px;
+  display:flex; align-items:center; gap:8px; color:var(--ink);
+}
+.rail summary::-webkit-details-marker{display:none}
+.rail summary::before{
+  content:"›"; color:var(--muted); font-size:15px; line-height:1;
+  transition:transform .12s; display:inline-block;
+}
+.rail details[open] summary::before{transform:rotate(90deg)}
+.rail summary:hover{background:#EFF4EC}
+.rail details.on summary{font-weight:600; background:#E7EEE4}
+.rail summary .ct{
+  margin-left:auto; font-size:10.5px; color:var(--muted);
+  background:#EDF1EA; border-radius:9px; padding:1px 7px;
+}
+.rail details a{
+  display:block; padding:5px 14px 5px 32px; font-size:13px;
+  color:var(--muted); text-decoration:none;
+}
+.rail details a:hover{background:#EFF4EC; color:var(--ink)}
+.rail details a.cur{
+  color:var(--ink); font-weight:700;
+  box-shadow:inset 3px 0 0 var(--gold); background:#F4F7F2;
+}
+.rail details a:last-child{margin-bottom:6px}
+
+body.has-rail .viewbar,
+body.has-rail main,
+body.has-rail footer{margin-left:214px}
+
+/* Desktop: the drawer's copy of the ribbon and the nav-only rail are
+ * both redundant, because the ribbon is already in the bar. */
+.rail-nav,.menubtn,.railback,.rail.navonly{display:none}
+
+@media(max-width:900px){
+  /* One drawer, one button. The ribbon collapses into the drawer
+   * rather than wrapping across three lines of a phone screen, and the
+   * season list rides along with it, so everything is reachable from
+   * the same control. */
+  .sitebar nav{display:none}
+  .sitebar .inner{min-height:48px; gap:10px}
+  .menubtn{
+    display:flex; align-items:center; gap:8px; margin-left:auto;
+    background:#243329; color:var(--nav-ink); border:1px solid var(--nav-line);
+    border-radius:7px; padding:7px 12px; cursor:pointer; font-size:15px;
+  }
+  .menubtn .ctx{
+    font-family:'Barlow Condensed',sans-serif; font-size:14px;
+    letter-spacing:.05em; color:var(--gold);
+  }
+  .rail,.rail.navonly{
+    display:block; top:0; width:264px; max-width:82vw; z-index:60;
+    transform:translateX(-100%); transition:transform .18s ease;
+    box-shadow:0 0 30px rgba(0,0,0,.25); padding-top:14px;
+  }
+  body.menu-open .rail{transform:none}
+  .railback{
+    display:block; position:fixed; inset:0; z-index:55;
+    background:rgba(10,18,13,.45); opacity:0; pointer-events:none;
+    transition:opacity .18s;
+  }
+  body.menu-open .railback{opacity:1; pointer-events:auto}
+  body.menu-open{overflow:hidden}
+
+  .rail-nav{display:block; border-bottom:1px solid var(--line-strong);
+    padding-bottom:8px; margin-bottom:6px}
+  .rail-nav a{
+    display:block; padding:10px 16px; font-size:15px; text-decoration:none;
+    color:var(--ink); font-family:'Barlow Condensed',sans-serif;
+    text-transform:uppercase; letter-spacing:.05em; font-weight:600;
+  }
+  .rail-nav a:hover{background:#EFF4EC}
+  .rail-nav a.on{color:var(--field); box-shadow:inset 3px 0 0 var(--gold)}
+
+  body.has-rail .viewbar,
+  body.has-rail main,
+  body.has-rail footer{margin-left:0}
+
+  /* Wide tables are the other half of the phone problem: they force
+     the whole page sideways instead of scrolling within themselves. */
+  main{padding:12px}
+  section{overflow-x:auto}
+  .viewbar{padding:9px 12px}
+  .viewbar h1{font-size:18px}
+  .hero{gap:16px; padding:12px}
+  .hero div b{font-size:21px}
+  .lede{padding:18px 16px 4px}
+  .lede h1{font-size:29px}
+  .cards{padding:0 16px; grid-template-columns:1fr}
+  .grp-h{padding:0 16px; margin:20px auto 8px}
+}
+
+/* --------------------------------------------- section landing pages */
+.lede{padding:26px 20px 6px; max-width:var(--shell-max); margin:0 auto}
+.lede h1{font-size:38px; font-weight:700; line-height:1.05}
+.lede h1 span{color:var(--field)}
+.lede p{max-width:62ch; margin-top:10px; color:var(--muted); font-size:15.5px}
+.cards{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
+  gap:14px; padding:0 20px; max-width:var(--shell-max); margin:0 auto;
+}
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:8px;
+  padding:15px 16px;
+}
+.card h3{font-size:16px; margin-bottom:5px}
+.card h3 a{color:inherit; text-decoration:none}
+.card h3 a:hover{color:var(--field)}
+.card p{font-size:13px; color:var(--muted); line-height:1.45}
+.card .yrs{
+  margin-top:11px; display:flex; flex-wrap:wrap; gap:5px;
+}
+.card .yrs a{
+  font-size:12px; padding:3px 9px; border-radius:4px; background:#EDF1EA;
+  color:var(--ink); text-decoration:none; font-variant-numeric:tabular-nums;
+}
+.card .yrs a:hover{background:var(--field); color:#fff}
+.grp-h{
+  max-width:var(--shell-max); margin:26px auto 10px; padding:0 20px;
+  font-size:15px; color:var(--muted); display:flex; align-items:baseline;
+  gap:10px; flex-wrap:wrap;
+}
+.grp-h b{
+  font-family:'Barlow Condensed',sans-serif; text-transform:uppercase;
+  letter-spacing:.08em; font-size:17px; color:var(--ink);
+}
+
+/* ------------------------------------------------------------ posts */
+.postlist{max-width:760px; margin:0 auto; padding:0 20px}
+.postlist article{
+  border-bottom:1px solid var(--line); padding:18px 0;
+}
+.postlist h2{font-size:21px; margin-bottom:4px}
+.postlist h2 a{color:inherit; text-decoration:none}
+.postlist h2 a:hover{color:var(--field)}
+.postlist time{font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--muted)}
+.postlist p{color:var(--muted); font-size:14px; margin-top:7px}
+.post{
+  max-width:720px; margin:0 auto; padding:8px 20px 40px; font-size:16px;
+  line-height:1.68;
+}
+.post h1{font-size:33px; text-transform:none; letter-spacing:0; margin:18px 0 6px}
+.post .when{font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:22px; display:block}
+.post h2,.post h3{text-transform:none; letter-spacing:0; margin:26px 0 8px}
+.post h2{font-size:23px}.post h3{font-size:19px}
+.post p{margin:13px 0}
+.post ul,.post ol{margin:13px 0 13px 22px}
+.post li{margin:5px 0}
+.post code{background:#EDF1EA; padding:1px 5px; border-radius:3px; font-size:14px}
+.post pre{background:#17241C; color:#EDF3EC; padding:14px 16px;
+  border-radius:7px; overflow-x:auto; margin:16px 0}
+.post pre code{background:none; color:inherit; padding:0}
+.post blockquote{border-left:3px solid var(--gold); margin:16px 0;
+  padding:2px 0 2px 16px; color:var(--muted)}
+.post img{max-width:100%; border-radius:7px}
+.post table{margin:16px 0; font-size:14px}
+
+/* ------------------------------------------------------- view header */
+.viewbar{
+  background:var(--ink); color:var(--nav-ink);
+  padding:9px 20px; display:flex; flex-wrap:wrap; gap:9px 18px;
+  align-items:center; border-bottom:1px solid #24352A;
+}
+.viewbar h1{font-size:21px; font-weight:700}
+.viewbar h1 span{color:var(--gold)}
+.badge{
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600;
+  letter-spacing:.09em; background:var(--gold); color:#17241C;
+  padding:3px 10px; border-radius:3px;
+}
+
+/* -------------------------------------------------------------- body */
+main{
+  max-width:var(--shell-max); margin:0 auto; padding:20px;
+  display:flex; flex-direction:column; gap:20px;
+}
+section{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:8px; overflow:hidden;
+}
+section>h2{
+  font-size:16px; padding:12px 16px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:10px;
+}
+section>h2::before{content:""; width:8px; height:8px; background:var(--gold)}
+section>h2 .hint{
+  margin-left:auto; font-family:'Barlow',sans-serif; font-size:11.5px;
+  text-transform:none; letter-spacing:0; color:var(--muted); font-weight:400;
+}
+
+.hero{display:flex; flex-wrap:wrap; gap:26px; padding:14px 16px}
+.hero div b{display:block; font-family:'Barlow Condensed',sans-serif;
+  font-size:26px; font-weight:700; line-height:1}
+.hero div span{font-size:10.5px; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--muted)}
+
+.note{padding:12px 16px; background:#FBF6E6;
+  border-bottom:1px solid var(--line); font-size:13px; color:#5A4A1F}
+.legend{padding:10px 16px; border-bottom:1px solid var(--line);
+  font-size:12.5px; color:var(--muted); display:flex; flex-wrap:wrap;
+  gap:16px; align-items:center}
+.key{display:inline-flex; align-items:center; gap:6px}
+.key i{width:14px; height:3px; border-radius:2px; display:inline-block}
+.key i.dash{height:0; border-top:2px dashed var(--muted); border-radius:0}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th{
+  position:sticky; top:0; background:var(--panel); text-align:left;
+  font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--muted); padding:8px 7px;
+  border-bottom:2px solid var(--line-strong);
+}
+td{padding:6px 7px; border-bottom:1px solid var(--line)}
+.tablewrap{max-height:70vh; overflow:auto}
+.num{text-align:right; font-weight:600; white-space:nowrap}
+.dim{color:var(--muted); font-weight:400}
+.pos{color:var(--pos); font-weight:700}
+.neg{color:var(--neg); font-weight:700}
+
+.tag{font-size:10px; font-weight:600; border-radius:3px; padding:2px 6px;
+  background:#EDF1EA; color:var(--muted); white-space:nowrap}
+.tag.ok{background:#E4EFE6; color:var(--pos)}
+.tag.off{background:#F6E5E5; color:var(--neg)}
+.tag.new{background:#E4EFE6; color:var(--pos)}
+
+.bar{position:relative; height:11px; background:#EDF1EA; border-radius:3px;
+  display:inline-block; width:100%; min-width:60px; vertical-align:middle}
+.bar i{position:absolute; top:0; height:11px; border-radius:3px; left:0}
+
+svg{display:block; width:100%}
+.empty{color:var(--muted); padding:26px 8px; text-align:center}
+.two{display:grid; grid-template-columns:1.35fr 1fr; gap:20px}
+@media(max-width:1000px){.two{grid-template-columns:1fr}}
+
+footer{
+  max-width:var(--shell-max); margin:0 auto;
+  padding:22px 20px 40px; color:var(--muted); font-size:12.5px;
+}
+footer .sources{
+  border-top:1px solid var(--line); padding-top:14px;
+  display:flex; flex-wrap:wrap; gap:6px 20px; align-items:baseline;
+}
+footer .sources b{
+  font-family:'Barlow Condensed',sans-serif; text-transform:uppercase;
+  letter-spacing:.07em; font-size:11.5px; color:var(--ink);
+}
+footer a{color:var(--muted); text-decoration:underline}
+footer a:hover{color:var(--ink)}
+
+/* Shown while a year's data is in flight. Deliberately quiet: the shell
+ * is already on screen, so a spinner would be louder than the wait. */
+.loading{padding:40px 8px; text-align:center; color:var(--muted);
+  font-size:13px}
+.failed{padding:18px 16px; background:#F6E5E5; color:#7A2E2E; font-size:13px}
+
+/* ---- home page: the week's best games -------------------------------
+   A strip, not a grid. It sits above the section cards and has to read
+   as a glance rather than as a third navigation surface, so every row
+   is one line and the whole thing links to one place -- the scoreboard.
+   Hidden until the payload lands (see index.html), because an empty
+   heading advertising "This week" is worse than no heading at all. */
+.topgames{max-width:1100px;margin:0 auto 26px;padding:0 20px}
+.tg-rows{display:grid;gap:6px;
+  grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
+.tg{display:flex;align-items:center;gap:10px;text-decoration:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:7px;
+  padding:8px 12px;color:var(--ink)}
+.tg:hover{border-color:var(--line-strong)}
+.tg-i{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  background:var(--gold);color:#17241C;border-radius:4px;
+  padding:1px 7px;min-width:34px;text-align:center}
+.tg-m{flex:1;font-size:13.5px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.tg-m em{color:var(--muted);font-style:normal;font-size:12px}
+.tg-n{font-weight:600;font-size:13px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------- *
+ * Collapsible explanation: a short visible lead, the rest behind an
+ * information button.
+ *
+ * The rule the markup follows is that **a note which qualifies a
+ * number keeps its qualifying clause visible** -- "zero is par, not
+ * zero points" stays on the page and only the elaboration folds away.
+ * Hiding a caveat entirely would let a reader take a number without
+ * the thing that makes it mean what it means, which is a worse page
+ * than a wordy one.
+ *
+ * `.cfb-more` is toggled with the `hidden` attribute, so a page that
+ * loads this markup without the stylesheet still hides it and still
+ * opens on click. Degradation is plain, not broken.
+ * ---------------------------------------------------------------- */
+.cfb-i{display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;padding:0;margin:0 0 0 5px;border-radius:50%;
+  border:1px solid currentColor;background:none;color:var(--muted,#5C6B5F);
+  font:600 10px/1 'Barlow',system-ui,sans-serif;cursor:pointer;
+  vertical-align:baseline;opacity:.65;transition:opacity .12s}
+.cfb-i:hover,.cfb-i:focus-visible{opacity:1}
+.cfb-i[aria-expanded="true"]{background:var(--muted,#5C6B5F);
+  color:var(--panel,#fff);border-color:transparent;opacity:1}
+.cfb-i:focus-visible{outline:2px solid var(--gold,#D9A422);outline-offset:2px}
+.cfb-more{display:block;margin-top:6px;padding-left:10px;
+  border-left:2px solid var(--line,#D9E1D6)}
+.cfb-more[hidden]{display:none}

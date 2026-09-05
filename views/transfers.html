@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transfer Board &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+/* Every class on this page is prefixed `xb-`. Unprefixed `.note` and
+   `.lede` collided with cfb.css when the accuracy view shipped, and the
+   collision was invisible until a rebuild moved the stylesheet order. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+.xb-badge{font-size:12.5px;color:#9FB3A4;letter-spacing:.04em}
+.xb-ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.xb-ctl input,.xb-ctl select{padding:7px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+main{max-width:1240px;margin:0 auto;padding:20px}
+section{background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:16px 18px;margin-bottom:18px}
+h2{font-size:17px;margin-bottom:4px}
+.xb-hint{font-size:12.5px;color:var(--muted);text-transform:none;
+  font-family:'Barlow',sans-serif;letter-spacing:0;font-weight:400}
+.xb-dim{color:var(--muted)}
+.xb-note{font-size:13px;color:var(--muted);line-height:1.65}
+.xb-scale{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;
+  font-size:12.5px;color:var(--muted)}
+.xb-scale b{color:var(--ink)}
+.xb-tw{overflow-x:auto}
+.xb-tbl{max-height:70vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;
+  white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--muted);cursor:pointer;user-select:none;
+  position:sticky;top:0;background:var(--panel);z-index:1}
+th.xb-num,td.xb-num{text-align:right}
+tbody tr:hover{background:#EFF4EC}
+.xb-star{color:var(--gold);letter-spacing:1px}
+.xb-star.xb-cold{color:#B9C4BB}
+.xb-pill{display:inline-block;padding:1px 7px;border-radius:9px;
+  font-size:11.5px;background:var(--line);color:var(--muted);
+  white-space:nowrap}
+.xb-pill.xb-hot{background:#E3EFE6;color:var(--field);font-weight:600}
+.xb-up{color:var(--pos);font-weight:600}
+.xb-down{color:var(--neg);font-weight:600}
+.xb-bar{display:inline-block;width:96px;height:9px;background:var(--line);
+  border-radius:5px;overflow:hidden;vertical-align:middle}
+.xb-bar i{display:block;height:100%;background:var(--field)}
+.xb-bar i.xb-alt{background:var(--gold)}
+.xb-wait{border-left:3px solid var(--gold);padding-left:12px}
+footer{max-width:1240px;margin:0 auto;padding:0 20px 34px;
+  font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Transfer <span>Board</span></h1>
+  <span class="xb-badge" id="xb-badge"></span>
+  <div class="xb-ctl">
+    <input id="xb-find" placeholder="player, from, or to…" size="20">
+    <select id="xb-div"><option value="">All divisions</option></select>
+    <select id="xb-pos"><option value="">All roles</option></select>
+    <select id="xb-src"><option value="">Any rating source</option></select>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2>What the two ratings are
+        <span class="xb-hint">read this before reading the gap</span></h2>
+    <p class="xb-note" id="xb-note"></p>
+    <div class="xb-scale" id="xb-scale"></div>
+  </section>
+
+  <section>
+    <h2>Incoming <span class="xb-hint" id="xb-cnt"></span></h2>
+    <div class="xb-tw xb-tbl" id="xb-out"></div>
+  </section>
+
+  <section>
+    <h2>The in-season tracker
+        <span class="xb-hint">why this page stops at the offseason</span></h2>
+    <p class="xb-note xb-wait" id="xb-live"></p>
+  </section>
+</main>
+<footer id="xb-meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/transfer_board.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function f3(n){return (n===null||n===undefined)?'—':n.toFixed(3);}
+function stars(n){
+  if(n===null||n===undefined) return '<span class="xb-dim">—</span>';
+  var s=''; for(var i=0;i<5;i++) s += (i<n?'★':'☆');
+  return '<span class="xb-star'+(n<3?' xb-cold':'')+'">'+s+'</span>';
+}
+
+var sortKey='prod', sortDir=-1;
+var fDiv='', fPos='', fSrc='', fText='';
+
+(function init(){
+  document.getElementById('xb-badge').textContent =
+    D.year+' incoming · '+D.players.length+' players with '
+    +D.min_events+'+ events';
+  /* The note ships as one string so the builder owns the wording, but
+     it reads as a wall. Split on the bullet the builder embeds. */
+  document.getElementById('xb-note').innerHTML =
+    esc(D.note).split(' • ').join('<br>&bull; ');
+  document.getElementById('xb-live').textContent = D.live;
+  document.getElementById('xb-meta').textContent = 'generated '+D.generated;
+
+  var ks=Object.keys(D.stars).sort();
+  document.getElementById('xb-scale').innerHTML =
+    '<span>Star scale fitted from this year&rsquo;s roster:</span>'
+    + ks.map(function(k){
+        return '<span>'+stars(Number(k))+' <b>'+D.stars[k].toFixed(3)
+          +'</b></span>';}).join('');
+
+  var ds={}, ps={}, ss={};
+  D.players.forEach(function(p){ if(p.div)ds[p.div]=1; if(p.role)ps[p.role]=1;
+                                 if(p.src)ss[p.src]=1; });
+  fill('xb-div', ds); fill('xb-pos', ps); fill('xb-src', ss);
+  ['xb-find','xb-div','xb-pos','xb-src'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.addEventListener('input', read); el.addEventListener('change', read);
+  });
+  draw();
+})();
+
+function fill(id, obj){
+  var el=document.getElementById(id);
+  Object.keys(obj).sort().forEach(function(k){
+    var o=document.createElement('option'); o.value=k; o.textContent=k;
+    el.appendChild(o);
+  });
+}
+function read(){
+  fText=document.getElementById('xb-find').value.toLowerCase();
+  fDiv=document.getElementById('xb-div').value;
+  fPos=document.getElementById('xb-pos').value;
+  fSrc=document.getElementById('xb-src').value;
+  draw();
+}
+function rows(){
+  return D.players.filter(function(p){
+    if(fDiv && p.div!==fDiv) return false;
+    if(fPos && p.role!==fPos) return false;
+    if(fSrc && p.src!==fSrc) return false;
+    if(fText){
+      var hay=(p.name+' '+p.frm+' '+p.to+' '+p.pos).toLowerCase();
+      if(hay.indexOf(fText)<0) return false;
+    }
+    return true;
+  });
+}
+
+/* The gap is only a finding when RECRUITED is a high-school composite.
+   For a portal valuation it compares two judgements made after the same
+   season, and for an unrated player there is nothing to compare at all
+   -- so those rows carry no gap rather than a gap against the 0.70
+   floor, which would be a large number manufactured out of an absence.
+   The source column and its filter put that distinction in front of the
+   reader instead of hiding it behind a threshold chosen here. */
+function draw(){
+  var r = rows().slice();
+  r.sort(function(a,b){
+    var x=a[sortKey], y=b[sortKey];
+    if(x===null||x===undefined) return 1;
+    if(y===null||y===undefined) return -1;
+    if(typeof x==='string') return x.localeCompare(y)*sortDir;
+    return (x<y?-1:x>y?1:0)*sortDir;
+  });
+  document.getElementById('xb-cnt').textContent =
+    r.length+' of '+D.players.length+' shown · click a header to sort';
+
+  var head=[['name','Player'],['pos','Pos'],['role','Role'],
+            ['frm','From'],['to','To'],['div','Div'],['ev','Events'],
+            ['prod','Production'],['comp','Recruited'],['src','Source'],
+            ['gap','Gap']];
+  var html='<table><thead><tr>'
+    + head.map(function(h){
+        var num=(h[0]==='ev'||h[0]==='prod'||h[0]==='comp'||h[0]==='gap');
+        return '<th class="'+(num?'xb-num':'')+'" data-k="'+h[0]+'">'+h[1]
+          +(sortKey===h[0]?(sortDir<0?' ▾':' ▴'):'')+'</th>';}).join('')
+    + '</tr></thead><tbody>'
+    + r.map(function(p){
+        var w=Math.max(0,Math.min(100,(p.prod-0.70)/0.30*100));
+        /* A gap only survives to the page when RECRUITED is a
+           high-school composite. Otherwise it is suppressed here rather
+           than greyed out, because a faint number is still a number and
+           gets read. */
+        var real = (p.src==='High-school composite');
+        var g = real ? p.gap : null;
+        var cls=(g===null)?'xb-dim':(g>0?'xb-up':(g<0?'xb-down':'xb-dim'));
+        return '<tr><td><b>'+esc(p.name)+'</b></td>'
+          +'<td class="xb-dim">'+esc(p.pos)+'</td>'
+          +'<td class="xb-dim">'+esc(p.role)+'</td>'
+          +'<td>'+esc(String(p.frm).replace(/_/g,' '))+'</td>'
+          +'<td><b>'+esc(String(p.to).replace(/_/g,' '))+'</b></td>'
+          +'<td class="xb-dim">'+esc(p.div)+'</td>'
+          +'<td class="xb-num xb-dim">'+p.ev+'</td>'
+          +'<td class="xb-num">'+f3(p.prod)+' '+stars(p.sp)
+            +' <span class="xb-bar"><i style="width:'+w.toFixed(0)
+            +'%"></i></span></td>'
+          +'<td class="xb-num xb-dim">'+f3(p.comp)
+            +(p.comp===null?'':' '+stars(p.sc))+'</td>'
+          +'<td><span class="xb-pill'+(real?' xb-hot':'')+'">'
+            +esc(p.src)+'</span></td>'
+          +'<td class="xb-num '+cls+'">'
+            +(g===null?'—':(g>0?'+':'')+g.toFixed(3))+'</td></tr>';
+      }).join('')
+    + '</tbody></table>';
+  var box=document.getElementById('xb-out');
+  box.innerHTML=html;
+  Array.prototype.forEach.call(box.querySelectorAll('th[data-k]'),
+    function(th){
+      th.addEventListener('click', function(){
+        var k=th.getAttribute('data-k');
+        if(k===sortKey){ sortDir=-sortDir; } else { sortKey=k; sortDir=-1; }
+        draw();
+      });
+    });
+}
+
+}
+
+CFB.bootOnce({
+  active: 'transfers', view: 'transfers',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

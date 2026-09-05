@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accuracy &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+.badge{font-family:'Barlow Condensed';font-size:13px;font-weight:600;
+  letter-spacing:.09em;background:var(--gold);color:#17241C;
+  padding:3px 10px;border-radius:3px}
+.weekbox{display:flex;align-items:center;gap:10px;margin-left:auto}
+.weekbox label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#A9BCAA}
+.weekbox output{font-family:'Barlow Condensed';font-size:19px;font-weight:600;
+  min-width:92px;text-align:center;background:#243329;border-radius:4px;padding:2px 8px}
+input[type=range]{accent-color:var(--gold);width:180px}
+
+main{max-width:1240px;margin:0 auto;padding:20px;display:flex;
+  flex-direction:column;gap:20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+section>h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+section>h2::before{content:"";width:8px;height:8px;background:var(--gold)}
+section>h2 .hint{margin-left:auto;font-family:'Barlow';font-size:11.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;
+  border-bottom:1px solid var(--line);align-items:center}
+.filters input[type=search],.filters select{padding:7px 10px;
+  border:1px solid var(--line-strong);border-radius:6px;background:#fff}
+.filters input[type=search]{flex:1;min-width:150px}
+.filters2{padding-top:8px;padding-bottom:8px;gap:6px}
+.flabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);font-weight:600}
+.chip{border:1px solid var(--line-strong);background:#fff;border-radius:999px;
+  padding:5px 12px;font-size:13px;font-weight:500;color:var(--muted)}
+.chip.on{color:#fff;border-color:transparent;background:var(--ink)}
+.chip.part{background:linear-gradient(90deg,var(--ink) 50%,#fff 50%);
+  color:var(--ink);border-color:var(--line-strong)}
+.chip[disabled]{cursor:not-allowed}
+.chipsep{width:1px;height:22px;background:var(--line-strong);margin:0 2px}
+#groups,#tiers{display:inline-flex;gap:6px;flex-wrap:wrap}
+
+.scopes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;
+  background:var(--line)}
+.scope{background:var(--panel);padding:14px 16px}
+.scope h3{font-size:12.5px;color:var(--muted);letter-spacing:.07em;margin-bottom:8px}
+.scope .big{font-family:'Barlow Condensed';font-size:38px;font-weight:700;line-height:1}
+.scope .big small{font-size:15px;font-weight:600;color:var(--muted);margin-left:4px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin-top:10px;font-size:12.5px}
+.kv span{color:var(--muted)}
+.kv b{font-weight:600}
+@media(max-width:820px){.scopes{grid-template-columns:1fr}}
+
+/* The second-model panel. Deliberately quieter than the scope cards
+   above it: this is a comparison against the record, not part of it. */
+#ccsrbox .ccsr-note{font-size:13px;color:var(--muted);line-height:1.65;
+  max-width:80ch;margin:0 0 10px;padding:0 16px}
+#ccsrbox .verdict{background:var(--paper);border:1px solid var(--line-strong);
+  border-radius:7px;padding:10px 12px;font-size:13px;line-height:1.6;
+  max-width:82ch;margin:10px 0}
+#ccsrbox tr.ccsr-post td{background:#F6F2E4}
+#ccsrbox .win{color:var(--pos,#2F6B47);font-weight:600}
+#ccsrbox .lose{color:var(--neg,#B04343);font-weight:600}
+
+.tablewrap{max-height:62vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:10px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  padding:8px 7px;border-bottom:2px solid var(--line-strong);z-index:1}
+td{padding:6px 7px;border-bottom:1px solid var(--line)}
+.num{text-align:right;font-weight:600;white-space:nowrap}
+.dim{color:var(--muted);font-weight:400}
+.hit{color:var(--pos);font-weight:700}
+.miss{color:var(--neg);font-weight:700}
+.tname{font-weight:600}
+.win{font-weight:700}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+/* inline-block is load-bearing: a bare <span> is display:inline, so
+   height and width are ignored and the bar renders as nothing at all. */
+.gapbar{display:inline-block;width:100%;height:9px;border-radius:3px;
+  background:#EDF1EA;position:relative;min-width:70px;vertical-align:middle}
+.gapbar i{position:absolute;left:0;top:0;height:9px;border-radius:3px;background:var(--field)}
+footer{padding:18px 20px;color:var(--muted);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Model <span>Accuracy</span></h1>
+  <span class="badge" id="badge">—</span>
+  <div class="weekbox">
+    <label for="wk">Week</label>
+    <input type="range" id="wk" min="0" max="0" value="0" step="1">
+    <output id="wkout">—</output>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2>Filters <span class="hint" id="fhint"></span></h2>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search team…" aria-label="Search teams">
+      <select id="confFilter" aria-label="Filter by conference"><option value="">All conferences</option></select>
+      <span class="chipsep"></span>
+      <span id="chips"></span>
+    </div>
+    <div class="filters filters2">
+      <span class="flabel">Group</span><span id="groups"></span>
+      <span class="chipsep"></span>
+      <span class="flabel">FBS tier</span><span id="tiers"></span>
+      <span class="chipsep"></span>
+      <label class="flabel" style="display:flex;gap:6px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="bothSides"> Both teams must match
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Model performance <span class="hint" id="perfhint"></span></h2>
+    <div class="scopes" id="scopes"></div>
+    <div class="tablewrap" style="max-height:none;border-top:1px solid var(--line)">
+      <table>
+        <thead><tr>
+          <th>Rating gap</th>
+          <th class="num" title="Games in this bucket">Games</th>
+          <th class="num" title="Share where the model picked the winner">Accuracy</th>
+          <th style="width:110px"></th>
+          <th class="num" title="Mean win probability the model assigned its own pick. Compare with accuracy: well above means overconfident.">Model said</th>
+          <th class="num" title="Accuracy minus stated confidence. Near zero is calibrated.">Cal</th>
+          <th class="num" title="Mean absolute error of the predicted margin, points">MAE</th>
+          <th class="num" title="Mean signed error. Positive = the model favours the home side too much.">Bias</th>
+        </tr></thead>
+        <tbody id="gaprows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="ccsrbox" hidden>
+    <h2>A second model, for comparison
+        <span class="hint">CCSR &mdash; not used by any rating on this site</span></h2>
+    <div id="ccsrpanel"></div>
+  </section>
+
+  <section>
+    <h2>Games <span class="hint" id="gamehint"></span></h2>
+    <div class="filters" style="padding:8px 16px">
+      <span class="flabel">Show</span>
+      <span id="resfilter"></span>
+      <span class="chipsep"></span>
+      <span class="flabel">Sort</span>
+      <select id="sortBy">
+        <option value="week">Week</option>
+        <option value="err">Biggest margin miss</option>
+        <option value="upset">Biggest upset</option>
+        <option value="gap">Rating gap</option>
+      </select>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th class="num">Wk</th>
+          <th>Matchup</th>
+          <th class="num" title="Competitiveness going INTO the game, not after it">Rtg</th>
+          <th class="num" title="Absolute rating gap">Gap</th>
+          <th>Predicted</th>
+          <th class="num" title="Predicted margin for the projected winner">By</th>
+          <th class="num" title="Win probability the model gave its pick">Conf</th>
+          <th>Actual</th>
+          <th class="num">By</th>
+          <th class="num" title="Predicted margin minus actual, from the home side">Err</th>
+          <th class="num">Hit</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/accuracy.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+var GF = {}; D.fields.forEach(function(f,i){GF[f]=i;});
+var G = D.games, T = D.teams;
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function nm(id){var t=T[id];return t?String(t[0]).replace(/_/g,' '):id;}
+function divOf(id){var t=T[id];return t?t[1]:'';}
+function confOf(id){var t=T[id];return t?t[2]:'';}
+function isP4(id){var t=T[id];return !!(t&&t[3]);}
+function f1(n){return (Math.round(n*10)/10).toFixed(1);}
+function pct(n){return (100*n).toFixed(1)+'%';}
+
+/* Derived once. Everything the tables and the summary need per game,
+   so filtering never has to re-derive it. */
+var games = G.map(function(r){
+  var hp=r[GF.home_pts], ap=r[GF.away_pts];
+  var am=hp-ap, pm=r[GF.pred_margin];
+  var tie=am===0;
+  var predHome=pm>0;
+  var wpPick=predHome?r[GF.wp_home]:1-r[GF.wp_home];
+  return {
+    week:r[GF.week], h:r[GF.home], a:r[GF.away], neutral:r[GF.neutral],
+    muH:r[GF.mu_home], muA:r[GF.mu_away],
+    gap:Math.abs(r[GF.mu_home]-r[GF.mu_away]),
+    pm:pm, wp:r[GF.wp_home], wpPick:wpPick, sd:r[GF.margin_sd],
+    hp:hp, ap:ap, am:am, tie:tie,
+    predHome:predHome, homeWon:am>0,
+    // Ties can be neither right nor wrong; they are counted separately
+    // rather than folded in as half a hit.
+    correct: !tie && (pm>0)===(am>0),
+    err: pm-am
+  };
+});
+
+/* ---------- filters (parity with the competitiveness board) ---------- */
+var DIV_GROUPS=[
+  {label:'NCAA / NAIA', divs:['NCAA FBS','NCAA FCS','NCAA D1','NCAA D2',
+                              'NCAA D3','NAIA','Other']},
+  {label:'Junior college', divs:['CCCAA','NCCAA','NJCAA']},
+  {label:'U-Sports', divs:['U-Sports']}
+];
+DIV_GROUPS.forEach(function(g){
+  g.present=g.divs.filter(function(d){return D.divisions.indexOf(d)>=0;});});
+
+var divFilter={}, tierFilter={P4:false,G6:false}, confFilter='', query='';
+var bothSides=false, resFilter='all', sortBy='week';
+D.divisions.forEach(function(d){divFilter[d]=true;});
+var maxWeek=D.weeks.length?D.weeks[D.weeks.length-1]:0;
+var curWeek=maxWeek;
+function tierActive(){return tierFilter.P4||tierFilter.G6;}
+
+/* A game has two teams, so "does it match?" has two readings. Default is
+   either side -- an SEC team playing an FCS opponent is still an SEC
+   result. Tick "both" for strictly intra-group games. */
+function sideOK(id){
+  var d=divOf(id);
+  if(!divFilter[d]&&D.divisions.indexOf(d)>=0)return false;
+  if(tierActive()){
+    if(d!=='NCAA FBS')return false;
+    if(!tierFilter[isP4(id)?'P4':'G6'])return false;
+  }
+  if(confFilter&&confOf(id)!==confFilter)return false;
+  if(query){
+    if(nm(id).toLowerCase().indexOf(query)<0&&
+       String(confOf(id)).toLowerCase().indexOf(query)<0)return false;
+  }
+  return true;
+}
+function inScope(g){
+  return bothSides ? (sideOK(g.h)&&sideOK(g.a)) : (sideOK(g.h)||sideOK(g.a));
+}
+
+/* ---------- metrics ---------- */
+function summarise(list){
+  var dec=list.filter(function(g){return !g.tie;});
+  if(!list.length)return null;
+  var n=dec.length||1;
+  var hits=0,brier=0,mae=0,bias=0,sq=0,w7=0,w14=0,conf=0,ups=0;
+  dec.forEach(function(g){
+    if(g.correct)hits++;
+    var o=g.homeWon?1:0;
+    brier+=(g.wp-o)*(g.wp-o);
+    conf+=g.wpPick;
+    if(!g.correct&&g.wpPick>=0.65)ups++;
+  });
+  list.forEach(function(g){
+    var e=Math.abs(g.err);
+    mae+=e;bias+=g.err;sq+=g.err*g.err;
+    if(e<=7)w7++;if(e<=14)w14++;
+  });
+  return {games:list.length, decided:dec.length, ties:list.length-dec.length,
+    acc:hits/n, brier:brier/n, conf:conf/n, upsets:ups,
+    mae:mae/list.length, bias:bias/list.length,
+    rmse:Math.sqrt(sq/list.length),
+    w7:w7/list.length, w14:w14/list.length};
+}
+
+var GAPS=[[0,50,'0–50'],[50,100,'50–100'],[100,200,'100–200'],
+          [200,350,'200–350'],[350,1e9,'350+']];
+
+/* ---------- render ---------- */
+function scopeCard(title, sub, s){
+  if(!s||!s.decided)return '<div class="scope"><h3>'+esc(title)+'</h3>'+
+    '<div class="big dim">—</div><div class="kv"><span>'+esc(sub)+'</span><b></b></div></div>';
+  return '<div class="scope"><h3>'+esc(title)+'</h3>'+
+    '<div class="big">'+pct(s.acc)+'<small>'+s.decided+' games</small></div>'+
+    '<div class="kv">'+
+      '<span>Mean confidence</span><b>'+pct(s.conf)+'</b>'+
+      '<span>Calibration</span><b class="'+(Math.abs(s.acc-s.conf)<0.03?'':
+        (s.acc<s.conf?'miss':'hit'))+'">'+
+        ((s.acc-s.conf>=0?'+':'')+(100*(s.acc-s.conf)).toFixed(1))+' pts</b>'+
+      '<span>Margin MAE</span><b>'+f1(s.mae)+'</b>'+
+      '<span>Bias (home)</span><b>'+(s.bias>=0?'+':'')+f1(s.bias)+'</b>'+
+      '<span>Within 7 / 14</span><b>'+pct(s.w7)+' / '+pct(s.w14)+'</b>'+
+      '<span>Brier</span><b>'+s.brier.toFixed(4)+'</b>'+
+      '<span>Confident misses</span><b>'+s.upsets+'</b>'+
+      (s.ties?'<span>Ties (unscored)</span><b>'+s.ties+'</b>':'')+
+    '</div>'+
+    '<div class="kv" style="margin-top:6px"><span class="dim" style="font-size:11px">'+
+      esc(sub)+'</span><b></b></div></div>';
+}
+
+function render(){
+  var scoped=games.filter(inScope);
+  var toDate=scoped.filter(function(g){return g.week<=curWeek;});
+  var thisWk=scoped.filter(function(g){return g.week===curWeek;});
+
+  document.getElementById('scopes').innerHTML=
+    scopeCard('Full season','every week in the file',summarise(scoped))+
+    scopeCard('Through week '+curWeek,'weeks 1–'+curWeek,summarise(toDate))+
+    scopeCard('Week '+curWeek+' only','that week alone',summarise(thisWk));
+
+  var s=summarise(scoped);
+  document.getElementById('perfhint').textContent = s&&s.decided
+    ? s.decided+' scored games · accuracy should rise down the table'
+    : 'no games in scope';
+
+  // gap splits, full-season scope
+  var rows='';
+  GAPS.forEach(function(b){
+    var sub=scoped.filter(function(g){return g.gap>=b[0]&&g.gap<b[1];});
+    var st=summarise(sub);
+    if(!st||!st.decided)return;
+    rows+='<tr><td class="tname">'+b[2]+'</td>'+
+      '<td class="num dim">'+st.decided+'</td>'+
+      '<td class="num">'+pct(st.acc)+'</td>'+
+      '<td><span class="gapbar"><i style="width:'+
+        Math.max(0,(st.acc-0.5)*200).toFixed(1)+'%"></i></span></td>'+
+      '<td class="num dim">'+pct(st.conf)+'</td>'+
+      '<td class="num '+(Math.abs(st.acc-st.conf)<0.03?'dim':
+        (st.acc<st.conf?'miss':'hit'))+'">'+
+        ((st.acc-st.conf>=0?'+':'')+(100*(st.acc-st.conf)).toFixed(1))+'</td>'+
+      '<td class="num dim">'+f1(st.mae)+'</td>'+
+      '<td class="num dim">'+(st.bias>=0?'+':'')+f1(st.bias)+'</td></tr>';
+  });
+  document.getElementById('gaprows').innerHTML=rows||
+    '<tr><td colspan="8" class="empty">No games in scope.</td></tr>';
+
+  // game table
+  var list=toDate.slice();
+  if(resFilter==='hit')list=list.filter(function(g){return g.correct;});
+  else if(resFilter==='miss')list=list.filter(function(g){return !g.correct&&!g.tie;});
+  else if(resFilter==='week')list=list.filter(function(g){return g.week===curWeek;});
+  if(sortBy==='err')list.sort(function(x,y){return Math.abs(y.err)-Math.abs(x.err);});
+  else if(sortBy==='upset')list.sort(function(x,y){
+    return (y.correct?0:y.wpPick)-(x.correct?0:x.wpPick);});
+  else if(sortBy==='gap')list.sort(function(x,y){return y.gap-x.gap;});
+  else list.sort(function(x,y){return x.week-y.week||Math.abs(y.pm)-Math.abs(x.pm);});
+
+  var MAXROWS=1200;
+  // Say what is actually on screen. Reporting the match count while
+  // silently rendering a capped slice reads as a bug in the filter.
+  document.getElementById('gamehint').textContent =
+    (list.length>MAXROWS ? 'showing '+MAXROWS+' of '+list.length
+                         : list.length+' games')
+    + (list.length<scoped.length ? ' · '+scoped.length+' in scope' : '');
+
+  var html=list.slice(0,MAXROWS).map(function(g){
+    var pw=g.predHome?g.h:g.a, aw=g.homeWon?g.h:g.a;
+    var sep=g.neutral?' vs ':' at ';
+    return '<tr>'+
+      '<td class="num dim">'+g.week+'</td>'+
+      '<td><span class="tname">'+esc(nm(g.a))+'</span>'+
+        '<span class="dim">'+sep+'</span><span class="tname">'+esc(nm(g.h))+'</span>'+
+        (g.neutral?'<span class="dim"> ·N</span>':'')+'</td>'+
+      '<td class="num dim">'+Math.round(g.muA)+'/'+Math.round(g.muH)+'</td>'+
+      '<td class="num dim">'+Math.round(g.gap)+'</td>'+
+      '<td class="win">'+esc(nm(pw))+'</td>'+
+      '<td class="num">'+f1(Math.abs(g.pm))+'</td>'+
+      '<td class="num dim">'+(100*g.wpPick).toFixed(0)+'%</td>'+
+      '<td class="'+(g.tie?'dim':'win')+'">'+(g.tie?'tie':esc(nm(aw)))+'</td>'+
+      '<td class="num">'+(g.tie?'—':f1(Math.abs(g.am)))+'</td>'+
+      '<td class="num '+(Math.abs(g.err)>14?'miss':'dim')+'">'+
+        (g.err>=0?'+':'')+f1(g.err)+'</td>'+
+      '<td class="num '+(g.tie?'dim':(g.correct?'hit':'miss'))+'">'+
+        (g.tie?'—':(g.correct?'✓':'✗'))+'</td></tr>';
+  }).join('');
+  if(list.length>MAXROWS)
+    html+='<tr><td colspan="11" class="empty">'+(list.length-MAXROWS)+
+      ' more rows hidden — narrow the filters or pick a single week.</td></tr>';
+  document.getElementById('rows').innerHTML=html||
+    '<tr><td colspan="11" class="empty">No games match.</td></tr>';
+
+  syncConfOptions();
+  document.getElementById('fhint').textContent =
+    scoped.length+' of '+games.length+' games in scope';
+}
+
+/* ---------- controls ---------- */
+var divChipBtns={},chips=document.getElementById('chips');
+var groupWrap=document.getElementById('groups'),tierWrap=document.getElementById('tiers');
+function paintChip(b,on){
+  if(on)b.classList.add('on');else b.classList.remove('on');
+}
+function syncDivChips(){
+  D.divisions.forEach(function(d){
+    var b=divChipBtns[d];if(b)paintChip(b,divFilter[d]);});
+  DIV_GROUPS.forEach(function(g){
+    if(!g.btn)return;
+    var on=g.present.filter(function(d){return divFilter[d];}).length;
+    g.btn.classList.toggle('on',on===g.present.length);
+    g.btn.classList.toggle('part',on>0&&on<g.present.length);});
+  var fbsOn=divFilter['NCAA FBS'];
+  tierWrap.querySelectorAll('.chip').forEach(function(b){
+    b.disabled=!fbsOn;b.style.opacity=fbsOn?'':'0.4';});
+}
+D.divisions.forEach(function(d){
+  var b=document.createElement('button');b.className='chip on';b.textContent=d;
+  b.addEventListener('click',function(){
+    divFilter[d]=!divFilter[d];syncDivChips();render();});
+  divChipBtns[d]=b;chips.appendChild(b);});
+DIV_GROUPS.forEach(function(g){
+  if(!g.present.length)return;
+  var b=document.createElement('button');
+  b.className='chip grp';b.textContent=g.label;b.title=g.present.join(', ');
+  b.addEventListener('click',function(){
+    var allOn=g.present.every(function(d){return divFilter[d];});
+    g.present.forEach(function(d){divFilter[d]=!allOn;});
+    syncDivChips();render();});
+  g.btn=b;groupWrap.appendChild(b);});
+if(D.divisions.indexOf('NCAA FBS')>=0){
+  [['P4','P4','SEC, Big Ten, Big 12, ACC, and Notre Dame'],
+   ['G6','G6','Every other FBS conference, plus independents other than Notre Dame']]
+  .forEach(function(spec){
+    var b=document.createElement('button');
+    b.className='chip';b.textContent=spec[1];b.title=spec[2];
+    b.addEventListener('click',function(){
+      tierFilter[spec[0]]=!tierFilter[spec[0]];
+      b.classList.toggle('on',tierFilter[spec[0]]);
+      syncDivChips();render();});
+    tierWrap.appendChild(b);});
+}
+[['all','All'],['hit','Correct'],['miss','Missed'],['week','This week']]
+.forEach(function(spec){
+  var b=document.createElement('button');
+  b.className='chip'+(spec[0]==='all'?' on':'');b.textContent=spec[1];
+  b.addEventListener('click',function(){
+    resFilter=spec[0];
+    document.getElementById('resfilter').querySelectorAll('.chip')
+      .forEach(function(c){c.classList.remove('on');});
+    b.classList.add('on');render();});
+  document.getElementById('resfilter').appendChild(b);});
+
+var cf=document.getElementById('confFilter');
+function syncConfOptions(){
+  var seen={};
+  Object.keys(T).forEach(function(id){
+    var d=divOf(id);
+    if(!divFilter[d]&&D.divisions.indexOf(d)>=0)return;
+    if(tierActive()){
+      if(d!=='NCAA FBS')return;
+      if(!tierFilter[isP4(id)?'P4':'G6'])return;
+    }
+    if(confOf(id))seen[confOf(id)]=true;});
+  var list=Object.keys(seen).sort();
+  if(confFilter&&list.indexOf(confFilter)<0)confFilter='';
+  cf.innerHTML='<option value="">All conferences'+
+    (list.length?' ('+list.length+')':'')+'</option>'+
+    list.map(function(c){return '<option value="'+esc(c)+'"'+
+      (c===confFilter?' selected':'')+'>'+esc(c)+'</option>';}).join('');
+}
+cf.addEventListener('change',function(){confFilter=cf.value;render();});
+document.getElementById('q').addEventListener('input',function(e){
+  query=e.target.value.toLowerCase();render();});
+document.getElementById('bothSides').addEventListener('change',function(e){
+  bothSides=e.target.checked;render();});
+document.getElementById('sortBy').addEventListener('change',function(e){
+  sortBy=e.target.value;render();});
+
+var wk=document.getElementById('wk'),wko=document.getElementById('wkout');
+wk.min=D.weeks.length?D.weeks[0]:0;wk.max=maxWeek;wk.value=maxWeek;
+wko.textContent='Week '+maxWeek;
+wk.addEventListener('input',function(){
+  curWeek=+wk.value;wko.textContent='Week '+curWeek;render();});
+
+document.getElementById('badge').textContent=D.year+' · '+D.mode;
+document.getElementById('meta').textContent=
+  'Predictions made from the pre-week rating snapshot, before each week was '+
+  'processed · K='+D.config.k+' · HFA '+D.config.hfa_pts+' pts · generated '+
+  D.generated;
+
+/* ---- CCSR: the second model -------------------------------------
+   Rendered from D.ccsr, attached at publish time by site.py and absent
+   whenever the weekly refit has not been run for this season. It is a
+   comparison against the record above, never part of it, which is why
+   it lives in its own section with its own heading.
+
+   Both columns here are out-of-sample. CCSR's are produced by refitting
+   the whole-season equilibrium on games through the previous week and
+   predicting the week it has not seen -- the same forward discipline
+   the sequential model's own log follows, so the two are comparable.
+   The season-long CCSR fit, which calls ~85% of winners, is NOT shown
+   on this page: it saw every game it would be scored against, and
+   putting it beside an honest forward number is the specific
+   misreading this panel is built to prevent. */
+function drawCCSR(){
+  var c = D.ccsr, box = document.getElementById('ccsrbox');
+  if(!c || !c.n){ return; }
+  box.hidden = false;
+  var dW = c.ccsr.winners - c.seq.winners;
+  var dM = c.ccsr.mae - c.seq.mae;
+
+  var h = '<p class="ccsr-note">CCSR solves for the set of ratings '
+    + 'simultaneously consistent with every game of the season at once, '
+    + 'rather than walking forward and updating. It is tracked as a '
+    + 'second opinion; <b>no rating published on this site uses it</b>. '
+    + 'The numbers below are out-of-sample for both models &mdash; CCSR '
+    + 'refit each week on games through the previous week only, scored '
+    + 'on exactly the same games listed on this page.</p>';
+
+  h += '<div class="scopes">'
+    + '<div class="scope"><h3>CCSR</h3><div class="big">'
+    + pct(c.ccsr.winners) + '<small>winners</small></div>'
+    + '<div class="kv"><span>Mean error</span><b>' + c.ccsr.mae.toFixed(2)
+    + ' pts</b><span>Bias</span><b>' + (c.ccsr.bias>0?'+':'')
+    + c.ccsr.bias.toFixed(2) + '</b></div></div>'
+    + '<div class="scope"><h3>This model</h3><div class="big">'
+    + pct(c.seq.winners) + '<small>winners</small></div>'
+    + '<div class="kv"><span>Mean error</span><b>' + c.seq.mae.toFixed(2)
+    + ' pts</b><span>Bias</span><b>' + (c.seq.bias>0?'+':'')
+    + c.seq.bias.toFixed(2) + '</b></div></div>'
+    + '<div class="scope"><h3>Home team always</h3><div class="big">'
+    + pct(c.home_always.winners) + '<small>winners</small></div>'
+    + '<div class="kv"><span>Mean error</span><b>'
+    + c.home_always.mae.toFixed(2) + ' pts</b>'
+    + '<span>Games</span><b>' + c.n.toLocaleString() + '</b></div></div>'
+    + '</div>';
+
+  h += '<p class="verdict"><b>These two are a tie.</b> On ' + c.n.toLocaleString()
+    + ' games from week ' + c.start_week + ' onward, CCSR calls '
+    + (dW>=0 ? (100*dW).toFixed(1)+' percentage points more'
+             : (100*-dW).toFixed(1)+' percentage points fewer')
+    + ' winners and its average error is '
+    + (dM<=0 ? Math.abs(dM).toFixed(2)+' points lower'
+             : dM.toFixed(2)+' points higher')
+    + '. Across the two seasons measured neither gap is distinguishable '
+    + 'from chance, so the larger number in each row is not evidence of '
+    + 'a better model.</p>';
+
+  if(c.buckets && c.buckets.length){
+    h += '<div class="tablewrap" style="max-height:none;'
+      + 'border-top:1px solid var(--line)"><table><thead><tr>'
+      + '<th>When</th><th class="num">Games</th>'
+      + '<th class="num">CCSR</th><th class="num">This model</th>'
+      + '<th class="num">Diff</th><th class="num">CCSR MAE</th>'
+      + '<th class="num">MAE here</th></tr></thead><tbody>'
+      + c.buckets.map(function(b){
+          var d = b.ccsr - b.seq;
+          return '<tr class="' + (b.postseason?'ccsr-post':'') + '">'
+            + '<td>' + esc(b.label) + '</td>'
+            + '<td class="num">' + b.n.toLocaleString() + '</td>'
+            + '<td class="num">' + pct(b.ccsr) + '</td>'
+            + '<td class="num">' + pct(b.seq) + '</td>'
+            + '<td class="num ' + (d>0.005?'win':d<-0.005?'lose':'') + '">'
+            + (d>0?'+':'') + (100*d).toFixed(1) + '</td>'
+            + '<td class="num">' + b.ccsr_mae.toFixed(2) + '</td>'
+            + '<td class="num">' + b.seq_mae.toFixed(2) + '</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+      + '<p class="ccsr-note" style="margin-top:10px">Buckets are by how much '
+      + 'football has been played rather than by the calendar, because '
+      + 'the question is whether a whole-season fit needs results before '
+      + 'it is any good &mdash; and a calendar bucket mixes a team on its '
+      + 'bye with a team on its ninth start. No regular-season bucket '
+      + 'shows a difference that survives a test. The postseason '
+      + '(shaded) is the one that does, and only when both measured '
+      + 'seasons are pooled: over roughly 460 bowl and playoff games '
+      + 'CCSR calls 72.8% of winners against 69.4%, and the edge holds '
+      + 'when it is fitted on one season and spent on the other. One '
+      + 'season\u2019s postseason row is about 230 games and will not '
+      + 'show that on its own.</p>';
+  }
+  document.getElementById('ccsrpanel').innerHTML = h;
+}
+drawCCSR();
+
+
+syncDivChips();render();
+
+}
+
+CFB.bootOnce({
+  active: 'accuracy', view: 'accuracy',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

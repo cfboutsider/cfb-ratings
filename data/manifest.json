@@ -1,0 +1,134 @@
+{
+ "generated": "2026-09-05 15:09 UTC",
+ "public": true,
+ "views": {
+  "accuracy": {
+   "title": "Accuracy Dashboard",
+   "href": "views/accuracy.html",
+   "years": [
+    2023,
+    2024,
+    2025,
+    2026
+   ]
+  },
+  "ccsr": {
+   "title": "CCSR",
+   "href": "views/ccsr.html",
+   "years": [
+    2024,
+    2025
+   ]
+  },
+  "coaches": {
+   "title": "Coaches",
+   "href": "views/coaches.html",
+   "years": [
+    2025
+   ]
+  },
+  "coaching": {
+   "title": "Team Coaching",
+   "href": "views/coaching.html",
+   "years": [
+    2025
+   ]
+  },
+  "inseason": {
+   "title": "In Season Dashboard",
+   "href": "views/inseason.html",
+   "years": [
+    2023,
+    2024,
+    2025,
+    2026
+   ]
+  },
+  "offseason": {
+   "title": "Off Season Dashboard",
+   "href": "views/offseason.html",
+   "years": [
+    2024,
+    2025,
+    2026,
+    2027
+   ]
+  },
+  "poach": {
+   "title": "Poaching Board",
+   "href": "views/poach.html",
+   "years": [
+    2026
+   ]
+  },
+  "postseason": {
+   "title": "Postseason Projection",
+   "href": "views/postseason.html",
+   "years": [
+    2023,
+    2024,
+    2025,
+    2026
+   ]
+  },
+  "preseason": {
+   "title": "Preseason Dashboard",
+   "href": "views/preseason.html",
+   "years": [
+    2025,
+    2026
+   ]
+  },
+  "scoreboard": {
+   "title": "Scoreboard",
+   "href": "views/scoreboard.html",
+   "years": [
+    2023,
+    2024,
+    2025,
+    2026
+   ]
+  },
+  "talentboard": {
+   "title": "Talent Board",
+   "href": "views/talentboard.html",
+   "years": [
+    2026
+   ]
+  },
+  "team": {
+   "title": "Team Dashboard",
+   "href": "views/team.html",
+   "years": [
+    2023,
+    2024,
+    2025,
+    2026
+   ]
+  },
+  "transfers": {
+   "title": "Transfer Board",
+   "href": "views/transfers.html",
+   "years": [
+    2026
+   ]
+  },
+  "performance": {
+   "title": "Performance Summary",
+   "href": "views/performance.html",
+   "years": []
+  },
+  "drives": {
+   "title": "Drive Chart",
+   "href": "views/drives.html",
+   "years": [
+    2025,
+    2026
+   ]
+  }
+ },
+ "withheld": [
+  "talent",
+  "departures"
+ ]
+}

@@ -1,0 +1,442 @@
+/* Site runtime: navigation, the left rail, deep links, data loading.
+ *
+ * Two ideas hold this together.
+ *
+ * **A view is season-agnostic and the data is fetched.** Previously the
+ * year was baked into the HTML, so "select a year" meant "open a
+ * different 2 MB file" -- and 99% of each of those files was payload,
+ * so the shell was shipped over and over for no reason.
+ *
+ * **The navigation is generated from the manifest, never authored.**
+ * Season coverage is ragged and changes every time the model runs. A
+ * hand-written year list would drift out of step with what exists and
+ * offer links that 404. Everything here -- the ribbon, the rail, the
+ * section landing pages -- is drawn from the same manifest the views
+ * read, so the site cannot advertise something it did not build.
+ *
+ * Plain ES5-flavoured JS, no build step, on purpose: the whole site is
+ * static files and a toolchain would cost more than it saves.
+ */
+(function (global) {
+'use strict';
+
+var CFB = global.CFB = {};
+
+/* Where a page sits relative to the site root. Views live in /views/,
+ * everything else at the root, so a view has to climb one level.
+ * Computed rather than hard-coded so the site works from a
+ * subdirectory (user.github.io/cfb-ratings/) without every path
+ * breaking. */
+var ROOT = (function () {
+  var p = global.location.pathname;
+  return /\/views\/[^\/]*$/.test(p) ? '../' : './';
+}());
+CFB.root = ROOT;
+
+/* ------------------------------------------------------------ shape */
+/* Sections are grouped by update cadence, which is the question a
+ * returning reader is actually asking: is there anything new here.
+ * Team is deliberately top-level rather than filed under Dashboards --
+ * it is the page people reach for most often and the one every other
+ * view links into, so it should never need digging for. */
+CFB.SECTIONS = {
+  /* The scoreboard is its own section rather than a dashboard.
+     Everything under CCS answers "how good is this team"; the
+     scoreboard answers "what is on this weekend" -- a different
+     question, a different audience, and the one most people arrive
+     for. Filing it under a heading about the rating buried it. */
+  scoreboard: {
+    label: 'Scoreboard', href: 'views/scoreboard.html',
+    blurb: 'Every scheduled game, ranked by how good it should be.',
+    groups: [['Scoreboard', '', ['scoreboard']]]
+  },
+  dashboards: {
+    label: 'CCS', href: 'dashboards.html',
+    blurb: 'Competitiveness Composite Score, by phase of the season.',
+    groups: [
+      ['Active season', 'Updated weekly while games are being played',
+       ['inseason', 'postseason']],
+      ['Between seasons', 'Set once and then still',
+       ['preseason', 'offseason']]
+    ]
+  },
+  team: {
+    label: 'Team', href: 'views/team.html',
+    blurb: 'One team at a time.',
+    groups: [['Team', '', ['team']]]
+  },
+  sandbox: {
+    label: 'Sandbox', href: 'sandbox.html',
+    blurb: 'Research that has not earned its way into the model yet.',
+    groups: [['Research', 'Exploratory, not part of the rating',
+              ['coaching', 'coaches']]]
+  },
+  accuracy: {
+    label: 'Model Accuracy', href: 'model-accuracy.html',
+    blurb: 'How to check any of this.',
+    groups: [['Scoring', 'Every prediction, measured against what happened',
+              ['performance', 'accuracy']]]
+  },
+  posts: { label: 'Posts', href: 'posts.html', blurb: 'Notes and write-ups.' }
+};
+
+CFB.VIEW_TITLES = {
+  scoreboard: 'Scoreboard', inseason: 'In Season', postseason: 'Postseason', preseason: 'Preseason',
+  offseason: 'Off Season', team: 'Team', coaching: 'Team Coaching',
+  coaches: 'Coaches', performance: 'Performance Summary',
+  accuracy: 'Accuracy Dashboard'
+};
+
+CFB.VIEW_BLURBS = {
+  scoreboard: 'Every scheduled game, week by week, ranked by how close and how good the model expects it to be.',
+  inseason: 'Live ratings, projected records, conference races and per-game predicted lines.',
+  postseason: 'Bracket projections for all five divisions, week by week, with title odds.',
+  preseason: 'Where every team starts, and why.',
+  offseason: 'What changed between seasons, and what moved each rating.',
+  team: 'Rating history, schedule, results and the projection for every remaining game.',
+  coaching: 'Play-calling identity: what a staff intends and what it actually called.',
+  coaches: 'Head coaches and coordinators, tenure and turnover across every division.',
+  performance: 'How well the projections held up, pooled across every season.',
+  accuracy: 'Per-season scoring of every prediction the model made.'
+};
+
+CFB.VIEW_SECTION = {};
+Object.keys(CFB.SECTIONS).forEach(function (key) {
+  (CFB.SECTIONS[key].groups || []).forEach(function (g) {
+    g[2].forEach(function (v) { CFB.VIEW_SECTION[v] = key; });
+  });
+});
+
+function el(tag, cls, txt) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt != null) e.textContent = txt;
+  return e;
+}
+CFB.el = el;
+
+function href(view, year) {
+  return ROOT + 'views/' + view + '.html'
+    + (year ? '?year=' + encodeURIComponent(year) : '');
+}
+CFB.viewHref = href;
+
+/* ------------------------------------------------------------- nav */
+CFB.renderNav = function (active) {
+  var bar = document.querySelector('.sitebar .inner');
+  if (!bar) return;
+  var section = CFB.VIEW_SECTION[active] || active;
+
+  var brand = el('a', 'brand');
+  brand.href = ROOT + 'index.html';
+  brand.innerHTML = 'CFB <span>Ratings</span>';
+  bar.appendChild(brand);
+
+  var nav = el('nav');
+  var items = [{key: 'home', label: 'Home', href: 'index.html'}];
+  ['scoreboard', 'dashboards', 'team', 'sandbox', 'accuracy', 'posts']
+      .forEach(function (k) {
+    items.push({key: k, label: CFB.SECTIONS[k].label,
+                href: CFB.SECTIONS[k].href});
+  });
+  items.forEach(function (it) {
+    var a = el('a', it.key === section ? 'on' : '', it.label);
+    a.href = ROOT + it.href;
+    nav.appendChild(a);
+  });
+  bar.appendChild(nav);
+  bar.appendChild(el('div', 'right'));
+  CFB._navItems = items;
+  CFB._section = section;
+
+  /* One control on small screens, in the bar where people look for it.
+   * The previous version put a bare ☰ at the bottom-left corner and hid
+   * the year list behind it -- unlabelled, out of the way, and easy to
+   * miss entirely, which is how a phone ends up showing only the newest
+   * season with no visible way to change it. */
+  var btn = el('button', 'menubtn');
+  btn.setAttribute('aria-label', 'Menu');
+  btn.innerHTML = '<span>☰</span><b class="ctx"></b>';
+  btn.addEventListener('click', function () {
+    document.body.classList.toggle('menu-open');
+  });
+  bar.insertBefore(btn, nav);
+};
+
+/* ------------------------------------------------------- the rail */
+/* The left rail replaces the old top-right year dropdown rather than
+ * sitting beside it. Two controls doing the same job is how a reader
+ * ends up unsure which one is authoritative -- and the rail can show
+ * every year for every view in the section at once, which a single
+ * dropdown never could.
+ *
+ * Built with <details>/<summary>, so open and close is native: no
+ * click handlers, keyboard accessible for free, and it still works if
+ * this script fails after the markup is in place.
+ */
+CFB.renderRail = function (view, year) {
+  var section = CFB.SECTIONS[CFB.VIEW_SECTION[view]];
+  return CFB.manifest().then(function (m) {
+    var rail = el('aside', 'rail' + (section ? '' : ' navonly'));
+
+    /* The ribbon, repeated inside the drawer. Hidden on desktop, where
+     * it is already in the bar. On a phone this is what makes the
+     * drawer sufficient on its own: one control that reaches both the
+     * sections and the seasons, rather than a menu for one and a
+     * hidden button for the other. */
+    var navblk = el('div', 'rail-nav');
+    (CFB._navItems || []).forEach(function (it) {
+      var a = el('a', it.key === CFB._section ? 'on' : '', it.label);
+      a.href = ROOT + it.href;
+      navblk.appendChild(a);
+    });
+    rail.appendChild(navblk);
+
+    var back = el('div', 'railback');
+    back.addEventListener('click', function () {
+      document.body.classList.remove('menu-open');
+    });
+    document.body.appendChild(back);
+
+    if (!section) {
+      document.body.appendChild(rail);
+      document.body.classList.add('has-nav');
+      var c0 = document.querySelector('.menubtn .ctx');
+      if (c0) c0.textContent = 'Menu';
+      return;
+    }
+    rail.appendChild(el('div', 'rail-h', section.label));
+
+    (section.groups || []).forEach(function (grp) {
+      var live = grp[2].filter(function (v) { return (m.views || {})[v]; });
+      if (!live.length) return;
+      if (grp[0] && (section.groups || []).length > 1) {
+        rail.appendChild(el('div', 'rail-g', grp[0]));
+      }
+      live.forEach(function (v) {
+        var info = m.views[v];
+        var years = (info.years || []).slice().reverse();
+        var d = el('details', v === view ? 'on' : '');
+        if (v === view) d.open = true;
+        var s = el('summary');
+        s.appendChild(el('span', 'nm', CFB.VIEW_TITLES[v] || v));
+        if (years.length) s.appendChild(el('span', 'ct', years.length));
+        d.appendChild(s);
+        if (!years.length) {
+          var a0 = el('a', '', 'Open');
+          a0.href = href(v);
+          d.appendChild(a0);
+        }
+        years.forEach(function (y) {
+          var a = el('a', (v === view && String(y) === String(year))
+                          ? 'cur' : '', String(y));
+          a.href = href(v, y);
+          d.appendChild(a);
+        });
+        rail.appendChild(d);
+      });
+    });
+    document.body.appendChild(rail);
+    document.body.classList.add('has-rail', 'has-nav');
+
+    /* Put the current season on the menu button itself, so a phone
+     * shows what it is looking at and that it can be changed -- the
+     * whole failure was a page that displayed 2026 with no visible
+     * hint that 2023 existed. */
+    var ctx = document.querySelector('.menubtn .ctx');
+    if (ctx) ctx.textContent = year ? String(year) : (section.label || '');
+  });
+};
+
+/* --------------------------------------------------------- deep links */
+CFB.params = function () {
+  var out = {}, q = global.location.search.replace(/^\?/, '');
+  if (!q) return out;
+  q.split('&').forEach(function (kv) {
+    if (!kv) return;
+    var i = kv.indexOf('='), k = i < 0 ? kv : kv.slice(0, i);
+    out[decodeURIComponent(k)] =
+      i < 0 ? '' : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+  });
+  return out;
+};
+
+CFB.setParams = function (obj) {
+  var cur = CFB.params(), k;
+  for (k in obj) if (obj.hasOwnProperty(k)) {
+    if (obj[k] === null || obj[k] === undefined || obj[k] === '') delete cur[k];
+    else cur[k] = obj[k];
+  }
+  var parts = [];
+  for (k in cur) if (cur.hasOwnProperty(k)) {
+    parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(cur[k]));
+  }
+  global.history.replaceState(null, '',
+    global.location.pathname + (parts.length ? '?' + parts.join('&') : ''));
+};
+
+/* --------------------------------------------------------- data load */
+var manifestPromise = null;
+var cache = {};
+
+CFB.manifest = function () {
+  if (!manifestPromise) {
+    manifestPromise = fetch(ROOT + 'data/manifest.json').then(function (r) {
+      if (!r.ok) throw new Error('manifest ' + r.status);
+      return r.json();
+    });
+  }
+  return manifestPromise;
+};
+
+CFB.load = function (view, year) {
+  var key = view + '/' + year;
+  if (!cache[key]) {
+    cache[key] = fetch(ROOT + 'data/' + year + '/' + view + '.json')
+      .then(function (r) {
+        if (!r.ok) throw new Error(view + ' ' + year + ': HTTP ' + r.status);
+        return r.json();
+      })
+      .catch(function (e) { delete cache[key]; throw e; });
+  }
+  return cache[key];
+};
+
+/* Which season to show. Compared as strings on both sides: the
+ * manifest is JSON so its years arrive as numbers, while a URL
+ * parameter is always a string, and indexOf(String(want)) therefore
+ * looked for "2024" in [2023, 2024, 2025] and never found it -- so the
+ * selector silently fell back to the newest season every time. */
+function pickYear(years, want) {
+  var ys = (years || []).map(String);
+  var w = String(want || '');
+  return ys.indexOf(w) >= 0 ? w : ys[ys.length - 1];
+}
+CFB.pickYear = pickYear;
+
+/* ------------------------------------------------------------ footer */
+/* One list, so a credit cannot go stale on one page and not another.
+ * This names exactly what the published build is derived from; views
+ * built on licensed data are excluded from that build (see
+ * cfb_ratings/site.py), so crediting their source would name something
+ * the site does not actually use. */
+CFB.SOURCES = [
+  {name: 'Massey Ratings', url: 'https://masseyratings.com/'},
+  {name: 'CollegeFootballData', url: 'https://collegefootballdata.com/'},
+  {name: 'NCAA.com', url: 'https://www.ncaa.com/'},
+  {name: 'Wikipedia', url: 'https://en.wikipedia.org/'}
+];
+
+CFB.renderFooter = function (extra) {
+  var f = document.querySelector('footer');
+  if (!f) return;
+  if (extra) f.appendChild(el('div', 'meta', extra));
+  var s = el('div', 'sources');
+  s.appendChild(el('b', '', 'Data'));
+  CFB.SOURCES.forEach(function (src) {
+    var a = el('a', '', src.name);
+    a.href = src.url; a.target = '_blank'; a.rel = 'noopener';
+    s.appendChild(a);
+  });
+  f.appendChild(s);
+};
+
+/* --------------------------------------------------------- utilities */
+CFB.esc = function (s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+  });
+};
+CFB.teamHref = function (name, year) {
+  return ROOT + 'views/team.html?team=' + encodeURIComponent(name)
+    + (year ? '&year=' + encodeURIComponent(year) : '');
+};
+/* Any team name anywhere is a way into the team page. Without this the
+ * team dashboard is an island you can only reach from the ribbon. */
+CFB.teamLink = function (name, year) {
+  if (!name) return '';
+  return '<a class="tm" href="' + CFB.teamHref(name, year) + '">'
+    + CFB.esc(String(name).replace(/_/g, ' ')) + '</a>';
+};
+
+CFB.fail = function (node, err) {
+  if (typeof node === 'string') node = document.getElementById(node);
+  if (!node) return;
+  node.innerHTML = '<div class="failed">Could not load this season&rsquo;s '
+    + 'data. ' + CFB.esc(err && err.message ? err.message : err) + '</div>';
+};
+
+/* --------------------------------------------------------- section page */
+/* The landing page for a section, drawn from the manifest: one card per
+ * view, each listing its seasons as direct links. */
+CFB.renderSection = function (key, host) {
+  var sec = CFB.SECTIONS[key];
+  host = typeof host === 'string' ? document.getElementById(host) : host;
+  if (!sec || !host) return Promise.resolve();
+  return CFB.manifest().then(function (m) {
+    var html = '', any = 0;
+    (sec.groups || []).forEach(function (grp) {
+      var live = grp[2].filter(function (v) { return (m.views || {})[v]; });
+      if (!live.length) return;
+      any += live.length;
+      html += '<div class="grp-h"><b>' + CFB.esc(grp[0]) + '</b>'
+        + (grp[1] ? '<span>' + CFB.esc(grp[1]) + '</span>' : '') + '</div>'
+        + '<div class="cards">';
+      live.forEach(function (v) {
+        var info = m.views[v];
+        var years = (info.years || []).slice().reverse();
+        html += '<div class="card">'
+          + '<h3><a href="' + href(v, years[0]) + '">'
+          + CFB.esc(CFB.VIEW_TITLES[v] || info.title) + '</a></h3>'
+          + '<p>' + CFB.esc(CFB.VIEW_BLURBS[v] || '') + '</p>'
+          + '<div class="yrs">'
+          + (years.length
+             ? years.map(function (y) {
+                 return '<a href="' + href(v, y) + '">' + y + '</a>'; }).join('')
+             : '<a href="' + href(v) + '">Open</a>')
+          + '</div></div>';
+      });
+      html += '</div>';
+    });
+    host.innerHTML = any ? html
+      : '<div class="cards"><div class="card"><h3>Nothing built yet</h3>'
+        + '<p>Run the site build to populate this section.</p></div></div>';
+  }).catch(function (e) { CFB.fail(host, e); });
+};
+
+/* ------------------------------------------------------------- boot */
+/* Views whose drawing code runs once at load and wires its own event
+ * listeners as it goes -- which is most of them. Re-running that
+ * against a second season would bind every handler twice, so changing
+ * year navigates. Both files are already cached, so the reload is
+ * close to free. */
+CFB.bootOnce = function (opts) {
+  CFB.renderNav(opts.active);
+  CFB.renderFooter(opts.footer);
+  return CFB.manifest().then(function (m) {
+    var years = ((m.views || {})[opts.view] || {}).years || [];
+    var pick = pickYear(years, CFB.params().year);
+    CFB.renderRail(opts.view, pick);
+    if (!years.length) throw new Error('no seasons built for this view');
+    return CFB.load(opts.view, pick).then(opts.onData);
+  }).catch(function (e) {
+    CFB.fail(opts.into || document.querySelector('main'), e);
+  });
+};
+
+/* Views that can swap payloads in place without rebinding anything. */
+CFB.boot = function (opts) {
+  CFB.renderNav(opts.active);
+  CFB.renderFooter(opts.footer);
+  return CFB.manifest().then(function (m) {
+    var years = ((m.views || {})[opts.view] || {}).years || [];
+    var pick = pickYear(years, CFB.params().year);
+    CFB.renderRail(opts.view, pick);
+    if (!years.length) throw new Error('no seasons built for this view');
+    return opts.onYear(pick);
+  }).catch(function (e) {
+    CFB.fail(opts.into || document.querySelector('main'), e);
+  });
+};
+
+}(window));
