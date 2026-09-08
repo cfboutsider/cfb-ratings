@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+.big{display:flex;flex-wrap:wrap;gap:32px;padding:18px 16px}
+.big div b{display:block;font-family:'Barlow Condensed';font-size:38px;
+  font-weight:700;line-height:1}
+.big div span{font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted)}
+.big div em{display:block;font-style:normal;font-size:12px;color:var(--muted);
+  margin-top:3px}
+.vs{font-size:12.5px;color:var(--muted)}
+.rel{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:1000px){.rel{grid-template-columns:1fr}}
+.cal td.ok{color:var(--pos);font-weight:600}
+.cal td.off{color:var(--neg);font-weight:600}
+.warn{padding:12px 16px;background:#F6E5E5;border-bottom:1px solid var(--line);
+  font-size:13px;color:#7A2E2E}
+.basis{font-size:10px;font-weight:600;border-radius:3px;padding:2px 6px;
+  background:#EDF1EA;color:var(--muted)}
+.basis.back{background:#F6ECCF;color:#8A6D3B}
+.basis.fwd{background:#E4EFE6;color:var(--pos)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Model <span>Performance</span></h1>
+  <span class="badge" id="badge">&mdash;</span>
+</div>
+
+<main>
+  <section>
+    <h2>Every prediction, every season<span class="hint" id="scope"></span></h2>
+    <div class="big" id="headline"><div class="loading">Loading&hellip;</div></div>
+    <div class="note" id="how"></div>
+    <div class="warn" id="caveat" style="display:none"></div>
+  </section>
+
+  <div class="rel">
+    <section>
+      <h2>Calibration <span class="hint">does a stated 70% happen 70% of the time?</span></h2>
+      <div id="cal"></div>
+      <div class="note" id="calnote"></div>
+    </section>
+    <section>
+      <h2>Rating gap <span class="hint">the ratings checked against themselves</span></h2>
+      <div id="gap"></div>
+      <div class="note">A wider gap should mean a more predictable
+        game.<button class="cfb-i" type="button" data-more="pf-i-gap"
+          aria-expanded="false" aria-label="More about this">i</button>
+        <span class="cfb-more" id="pf-i-gap" hidden>If accuracy did not climb
+        down this table, the ratings would not be carrying the information
+        they claim to.</span></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>By season <span class="hint" id="seashint"></span></h2>
+    <div id="season"></div>
+  </section>
+
+  <section>
+    <h2>Regular season, championships, postseason
+      <span class="hint">the model gets worse when the games get strange</span></h2>
+    <div id="phase"></div>
+  </section>
+
+  <div class="rel">
+    <section>
+      <h2>Conference <span class="hint">familiarity cuts both ways</span></h2>
+      <div id="conference"></div>
+    </section>
+    <section>
+      <h2>Power 4 <span class="hint"></span></h2>
+      <div id="power"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>By division <span class="hint">where the ratings are best anchored</span></h2>
+    <div id="division"></div>
+  </section>
+
+
+  <section>
+    <h2>Conference bias <span class="hint">out-of-conference games only</span></h2>
+    <div id="confbias"></div>
+    <div class="note"><b>Positive</b> means the model predicted more than the
+      conference delivered &mdash; it is over-rated. Flagged only when the
+      whole interval sits off zero.<button class="cfb-i" type="button"
+        data-more="pf-i-conf" aria-expanded="false"
+        aria-label="More about this">i</button>
+      <span class="cfb-more" id="pf-i-conf" hidden>Inside a conference every
+      win is another member&rsquo;s loss, so the errors cancel and a league
+      could be mis-rated by thirty points without it showing. Only games
+      against outsiders carry information about where a conference actually
+      sits. The flagging rule keeps this quiet unless something is really
+      there.</span></div>
+  </section>
+
+  <div class="rel">
+    <section>
+      <h2>Power 4 vs Power 4 <span class="hint">non-conference only</span></h2>
+      <div id="p4m"></div>
+    </section>
+    <section>
+      <h2>Group of 6 vs Group of 6 <span class="hint">non-conference only</span></h2>
+      <div id="g6m"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Through the season <span class="hint">how quickly the ratings settle</span></h2>
+    <svg id="wkchart" viewBox="0 0 940 260" role="img"
+         aria-label="Accuracy and mean absolute error by week"></svg>
+    <div class="legend" id="wklegend"></div>
+  </section>
+</main>
+
+<footer><div id="meta"></div></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+function pct(n,d){return (n===null||n===undefined)?'—':(100*n).toFixed(d===undefined?1:d)+'%';}
+function f1(n){return (n===null||n===undefined)?'—':(Math.round(n*10)/10).toFixed(1);}
+function f2(n){return (n===null||n===undefined)?'—':(Math.round(n*100)/100).toFixed(2);}
+function sgn(n){return (n===null||n===undefined)?'—':((n>=0?'+':'')+f1(n));}
+var esc = CFB.esc;
+
+function headline(){
+  var o=D.overall, b=D.baselines;
+  document.getElementById('badge').textContent =
+    D.seasons.length + (D.seasons.length===1?' season':' seasons');
+  document.getElementById('scope').textContent =
+    D.games.toLocaleString()+' games, '+D.seasons[0]+'–'+D.seasons[D.seasons.length-1];
+  document.getElementById('headline').innerHTML = [
+    ['<b>'+pct(o.accuracy)+'</b><span>winners called</span><em>vs '
+      + pct(b.home_always.accuracy) + ' picking the home team — '
+      + '<b style="font-size:inherit;display:inline">'+sgn(100*o.edge_vs_home)
+      + ' points</b></em>'],
+    ['<b>'+f1(o.mae)+'</b><span>points of error</span><em>vs '+f1(o.baseline_mae)
+      + ' predicting one number every game</em>'],
+    ['<b>'+pct(D.calibration_error.weighted,2)+'</b><span>calibration error</span>'
+      + '<em>average gap between stated and actual, '
+      + esc(D.calibration_error.direction)+'</em>'],
+    ['<b>'+f2(o.brier)+'</b><span>brier score</span><em>0 is perfect, '
+      + '0.25 is a coin flip</em>']
+  ].map(function(x){return '<div>'+x[0]+'</div>';}).join('');
+
+  document.getElementById('how').innerHTML =
+    '<b>How this is scored.</b> Every prediction was recorded from the '
+    + 'rating snapshot taken <i>before</i> that week was played, so nothing '
+    + 'here is marking its own homework. Win/loss figures use all '
+    + D.games.toLocaleString() + ' games; margin figures use the '
+    + (D.overall.margin_games||0).toLocaleString() + ' with a real home team '
+    + '(see below). The baseline column is the point — an accuracy '
+    + 'number means nothing until you subtract what guessing would have got.';
+
+  if(D.ordering && D.ordering.winner_first){
+    var c=document.getElementById('caveat');
+    c.style.display='';
+    c.innerHTML = '<b>Known data quirk.</b> '+esc(D.ordering.note)
+      + ' This affects ' + D.ordering.neutral_games + ' games.';
+  }
+}
+
+function table(id, rows, cols, headers){
+  var host=document.getElementById(id);
+  if(!rows||!rows.length){host.innerHTML='<div class="empty">—</div>';return;}
+  host.innerHTML='<table><thead><tr>'
+    + headers.map(function(h,i){
+        return '<th'+(i?' class="num"':'')+'>'+esc(h)+'</th>';}).join('')
+    + '</tr></thead><tbody>'
+    + rows.map(function(r){
+        return '<tr>'+cols.map(function(c,i){
+          return '<td'+(i?' class="num"':'')+'>'+c(r)+'</td>';}).join('')+'</tr>';
+      }).join('')
+    + '</tbody></table>';
+}
+
+var STD = {
+  cols: [function(r){return esc(r.key);},
+         function(r){return r.games.toLocaleString();},
+         function(r){return pct(r.accuracy);},
+         function(r){return r.edge_vs_home===null?'—':
+           '<span class="'+(r.edge_vs_home>0?'pos':'neg')+'">'
+           +sgn(100*r.edge_vs_home)+'</span>';},
+         function(r){return f1(r.mae);},
+         function(r){return '<span class="dim">'+sgn(r.bias)+'</span>';},
+         function(r){return f2(r.brier);}],
+  head: ['','games','accuracy','vs baseline','MAE','bias','brier']
+};
+
+function drawSplits(){
+  ['season','phase','conference','power','division'].forEach(function(k){
+    table(k, (D.splits||{})[k], STD.cols, STD.head);
+  });
+  var s=(D.splits||{}).season||[];
+  var fwd=0, back=0;
+  Object.keys(D.provenance||{}).forEach(function(y){
+    if(D.provenance[y].basis==='forward') fwd++;
+    else if(D.provenance[y].basis==='backfilled') back++;
+  });
+  document.getElementById('seashint').innerHTML = back
+    ? back+' season'+(back>1?'s':'')+' had priors built after the fact — '
+      + 'those weeks-one predictions are not out-of-sample'
+    : s.length+' seasons';
+}
+
+function drawCal(){
+  var rows=D.calibration||[];
+  table('cal', rows,
+    [function(r){return esc(r.bucket);},
+     function(r){return r.games.toLocaleString();},
+     function(r){return pct(r.predicted);},
+     function(r){return pct(r.actual);},
+     function(r){var off=Math.abs(r.error)>0.03;
+       return '<span class="'+(off?'neg':'dim')+'">'+sgn(100*r.error)+'</span>';}],
+    ['stated chance','games','model said','actually happened','gap']);
+  var ce=D.calibration_error||{};
+  document.getElementById('calnote').innerHTML =
+    'Weighted average gap of <b>'+pct(ce.weighted,2)+'</b>, worst bucket '
+    + esc(ce.worst_bucket)+' at '+pct(ce.worst,1)+'. The model is slightly '
+    + esc(ce.direction)+'. This matters separately from accuracy: a forecast '
+    + 'you can size a decision on has to mean what it says, and a model can '
+    + 'call plenty of winners while being badly wrong about how sure it is.';
+}
+
+function drawGap(){
+  table('gap', D.by_gap||[],
+    [function(r){return esc(r.bucket);},
+     function(r){return r.games.toLocaleString();},
+     function(r){return pct(r.predicted);},
+     function(r){return pct(r.actual);},
+     function(r){return f1(r.mae);}],
+    ['rating gap','games','model said','actually happened','MAE']);
+}
+
+
+function drawBias(){
+  var rows=D.conference_bias||[];
+  table('confbias', rows,
+    [function(r){return esc(r.conference);},
+     function(r){return '<span class="dim">'+esc(r.division)+'</span>';},
+     function(r){return r.games;},
+     function(r){return '<span class="'+(r.flag?(r.bias>0?'neg':'pos'):'dim')+'">'
+       +sgn(r.bias)+'</span>';},
+     function(r){return '<span class="dim">'+sgn(r.lo)+' to '+sgn(r.hi)+'</span>';},
+     function(r){return r.flag?'<span class="tag '+(r.bias>0?'off':'on')+'">'
+       +(r.bias>0?'over-rated':'under-rated')+'</span>':'';}],
+    ['conference','division','games','bias','95% interval','']);
+}
+function drawMatch(id, rows){
+  table(id, rows,
+    [function(r){return esc(r.bucket);},
+     function(r){return r.games;},
+     function(r){return f1(r.predicted);},
+     function(r){return f1(r.actual);},
+     function(r){return '<span class="'+(Math.abs(r.bias)>3?'neg':'dim')+'">'
+       +sgn(r.bias)+'</span>';},
+     function(r){return pct(r.fav_won,0);}],
+    ['predicted margin','games','model said','actual','miss','fav won']);
+}
+
+function drawWeeks(){
+  var w=D.by_week||[]; if(!w.length) return;
+  var W=940,H=260,L=44,R=44,T=16,B=28;
+  var xs=w.map(function(r){return r.week;});
+  var lo=Math.min.apply(null,xs), hi=Math.max.apply(null,xs);
+  var x=function(v){return L+(W-L-R)*(hi===lo?0:(v-lo)/(hi-lo));};
+  var yA=function(v){return T+(H-T-B)*(1-(v-0.55)/0.30);};      // accuracy
+  var yM=function(v){return T+(H-T-B)*((v-10)/10);};            // MAE
+  var g='';
+  [0.60,0.70,0.80].forEach(function(v){
+    g+='<line x1="'+L+'" y1="'+yA(v)+'" x2="'+(W-R)+'" y2="'+yA(v)
+      +'" stroke="var(--line)"/><text x="'+(L-7)+'" y="'+(yA(v)+4)
+      +'" text-anchor="end" font-size="10" fill="var(--muted)">'
+      +(100*v).toFixed(0)+'%</text>';});
+  w.forEach(function(r){
+    g+='<text x="'+x(r.week)+'" y="'+(H-8)+'" text-anchor="middle" '
+      +'font-size="10" fill="var(--muted)">'+r.week+'</text>';});
+  var pa=w.filter(function(r){return r.accuracy!=null;})
+          .map(function(r){return x(r.week)+','+yA(r.accuracy);}).join(' ');
+  var pm=w.filter(function(r){return r.mae!=null;})
+          .map(function(r){return x(r.week)+','+yM(r.mae);}).join(' ');
+  g+='<polyline fill="none" stroke="var(--field)" stroke-width="2" points="'+pa+'"/>';
+  g+='<polyline fill="none" stroke="var(--gold)" stroke-width="2" points="'+pm+'"/>';
+  w.forEach(function(r){
+    if(r.accuracy!=null) g+='<circle cx="'+x(r.week)+'" cy="'+yA(r.accuracy)
+      +'" r="2.6" fill="var(--field)"><title>Week '+r.week+': '+pct(r.accuracy)
+      +' on '+r.games+' games</title></circle>';
+    if(r.mae!=null) g+='<circle cx="'+x(r.week)+'" cy="'+yM(r.mae)
+      +'" r="2.6" fill="var(--gold)"><title>Week '+r.week+': MAE '+f1(r.mae)
+      +'</title></circle>';});
+  document.getElementById('wkchart').innerHTML=g;
+  document.getElementById('wklegend').innerHTML =
+    '<span class="key"><i style="background:var(--field)"></i>accuracy '
+    + '(left scale)</span><span class="key"><i style="background:var(--gold)">'
+    + '</i>mean absolute error, 10–20 points</span>'
+    + '<span style="margin-left:auto">Week one is predicted entirely from '
+    + 'preseason priors. The error falling through the opening month is the '
+    + 'ratings learning; the flat stretch after is them having learned.</span>';
+}
+
+CFB.renderNav('performance');
+CFB.renderFooter();
+CFB.renderRail('performance');
+fetch(CFB.root + 'data/performance.json')
+  .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(function(data){
+    D = data;
+    if(D.error){ CFB.fail('headline', D.error); return; }
+    headline(); drawCal(); drawGap(); drawSplits(); drawWeeks();
+    drawBias(); drawMatch('p4m', D.p4_matchups||[]);
+    drawMatch('g6m', D.g6_matchups||[]);
+    document.getElementById('meta').textContent =
+      'Scored ' + D.games.toLocaleString() + ' games across '
+      + D.seasons.join(', ') + '. Generated ' + D.generated + '.';
+  })
+  .catch(function(e){ CFB.fail('headline', e); });
+</script>
+</body>
+</html>

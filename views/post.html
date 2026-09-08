@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<article class="post" id="post"><div class="loading">Loading&hellip;</div></article>
+
+<footer><div id="meta"></div></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+CFB.renderNav('posts');
+CFB.renderFooter();
+CFB.renderRail();
+
+var slug = (CFB.params().p || '').replace(/[^A-Za-z0-9._-]/g, '');
+var host = document.getElementById('post');
+
+if (!slug) {
+  host.innerHTML = '<div class="empty">No post selected. '
+    + '<a href="' + CFB.root + 'posts.html">Back to all posts</a>.</div>';
+} else {
+  fetch(CFB.root + 'data/posts/' + slug + '.json')
+    .then(function (r) {
+      if (!r.ok) throw new Error('no post called "' + slug + '"');
+      return r.json();
+    })
+    .then(function (p) {
+      document.title = p.title + ' · CFB Ratings';
+      /* p.html was rendered from markdown at build time, in Python, and
+         is written by the site owner -- it is the page's own content,
+         not third-party input, which is why it is inserted as HTML. */
+      host.innerHTML = '<h1>' + CFB.esc(p.title) + '</h1>'
+        + '<span class="when">' + CFB.esc(p.date)
+        + (p.words ? ' &middot; ' + Math.max(1, Math.round(p.words / 220))
+                     + ' min read' : '')
+        + '</span>' + p.html
+        + '<p style="margin-top:34px"><a href="' + CFB.root
+        + 'posts.html">&larr; All posts</a></p>';
+      if (p.engine === 'none') {
+        document.getElementById('meta').textContent =
+          'Rendered without a markdown library — run: pip install markdown';
+      }
+    })
+    .catch(function (e) { CFB.fail('post', e); });
+}
+</script>
+</body>
+</html>

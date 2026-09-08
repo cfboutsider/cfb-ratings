@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Model Accuracy &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/cfb.css">
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="lede">
+  <h1>Model <span>accuracy</span></h1>
+  <p>Every projection on this site was recorded before the games it describes. These pages score them against what actually happened, next to the baselines they have to beat.</p>
+</div>
+
+<div id="groups"></div>
+
+<footer><div id="meta"></div></footer>
+
+<script src="assets/cfb.js"></script>
+<script>
+CFB.renderNav('accuracy');
+CFB.renderFooter();
+CFB.renderRail();
+CFB.renderSection('accuracy', 'groups').then(function(){
+  CFB.manifest().then(function(m){
+    document.getElementById('meta').textContent =
+      'Generated ' + (m.generated || '') + '.';
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player Board &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+/* Every class on this page is prefixed `pl-`. Unprefixed `.note` and
+   `.lede` collided with cfb.css when the accuracy view shipped, and the
+   collision was invisible until a rebuild moved the stylesheet order.
+
+   This block is the FIRST `` in the file, which is what
+   `convert_views.py` deletes -- cfb.css owns the palette on the built
+   site and these values are the standalone fallback. Any token that is
+   NOT in cfb.css must be scoped to a class instead, or it resolves to
+   nothing after the build and the page renders blank. That cost the
+   drive chart a whole deploy. */
+:root{--paper:#F2F5EF;--panel:#FBFCF9;--ink:#17241C;--muted:#5C6B5F;
+  --field:#2F6B47;--gold:#D9A422;--line:#D9E1D6;
+  --pos:#2F6B47;--neg:#B04343}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}
+header h1 span{color:var(--gold)}
+.pl-badge{font-size:12.5px;color:#9FB3A4;letter-spacing:.04em}
+.pl-ctl{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.pl-ctl input,.pl-ctl select{padding:7px 10px;border-radius:6px;
+  border:1px solid #3C4C41;background:#243329;color:#EDF3EC}
+main{max-width:1400px;margin:0 auto;padding:20px}
+section{background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:16px 18px;margin-bottom:18px}
+h2{font-size:17px;margin-bottom:4px}
+.pl-hint{font-size:12.5px;color:var(--muted);text-transform:none;
+  font-family:'Barlow',sans-serif;letter-spacing:0;font-weight:400}
+.pl-dim{color:var(--muted)}
+.pl-note{font-size:13px;color:var(--muted);line-height:1.65}
+.pl-note p+p{margin-top:8px}
+.pl-note b{color:var(--ink)}
+
+/* One filter row above everything it scopes, never per-column controls. */
+.pl-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  margin:12px 0 4px}
+.pl-bar select,.pl-bar input{padding:6px 9px;border-radius:6px;
+  border:1px solid var(--line);background:#fff;color:var(--ink)}
+.pl-bar label{font-size:12.5px;color:var(--muted)}
+.pl-seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;background:#fff}
+.pl-seg button{border:0;background:transparent;padding:6px 12px;
+  cursor:pointer;color:var(--muted);font-size:13.5px}
+.pl-seg button.on{background:var(--field);color:#fff;font-weight:600}
+.pl-count{font-size:12.5px;color:var(--muted);margin-left:auto}
+
+.pl-tw{overflow-x:auto}
+.pl-tbl{max-height:70vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{position:sticky;top:0;z-index:2;background:var(--ink);color:#EDF3EC;
+  text-align:right;padding:8px 9px;font-weight:600;font-size:12.5px;
+  white-space:nowrap;cursor:pointer;user-select:none}
+thead th:first-child,thead th.pl-l{text-align:left}
+thead th.pl-sorted{color:var(--gold)}
+tbody td{padding:7px 9px;border-bottom:1px solid var(--line);
+  text-align:right;white-space:nowrap}
+tbody td:first-child,tbody td.pl-l{text-align:left}
+tbody tr:hover{background:#EFF4EC}
+.pl-star{color:var(--gold);font-weight:600}
+.pl-blank{color:#B9C4BB}
+.pl-moved{display:inline-block;padding:1px 7px;border-radius:99px;
+  background:#EAF1E6;border:1px solid var(--line);
+  font-size:12px;color:var(--field);font-weight:600}
+.pl-grad{display:inline-block;padding:1px 7px;border-radius:99px;
+  border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.pl-rate{font-weight:600}
+/* The source marker. Small, and never the only cue -- the note above
+   the table says what the two ratings are, because a superscript
+   cannot carry that on its own. */
+.pl-src{font-size:10.5px;color:var(--muted);margin-left:3px;
+  vertical-align:super;letter-spacing:.02em}
+.pl-empty{padding:26px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="viewbar">
+  <h1>Player <span>Board</span></h1>
+  <div class="pl-badge" id="pl-sub"></div>
+  <div class="pl-ctl">
+    <input id="pl-q" type="search" placeholder="player or team…" size="18">
+  </div>
+</div>
+
+<main>
+<section>
+  <h2>Every player's season <span class="pl-hint" id="pl-lede"></span></h2>
+  <!-- **The qualifying clause stays visible; only the mechanism
+       folds.** `COLLAPSIBLE_NOTES.md` §2: a note that qualifies a
+       number keeps the part that stops a misreading on the page.
+       Here that is "Stars are the weakest of the three", "never
+       subtracted from it", "off rosters, never graduated", "not
+       comparable across divisions", and the two runtime counts --
+       everything behind them is background. -->
+  <div class="pl-note">
+    <p>Three numbers per player, and they are <b>three different kinds of claim</b>. <b>Stats</b> are counted from play-by-play. <b>Rating</b> is modelled. <b>Stars</b> are a translation of the rating, and the weakest of the three. <button class="cfb-i" type="button" data-more="pb-i-1" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-1" hidden><b>Rating</b> is opponent-adjusted and shrunk toward the role&rsquo;s own median by how well that role predicts itself &mdash; a modelled measurement rather than a counted one. <b>Stars</b> place that rating on the recruiting axis: they answer &ldquo;what would he be called if he entered the portal today&rdquo;, which is a question about language rather than about the player.</span></p>
+    <p><b>Transferring is a column here, not the entry ticket.</b> <span id="pl-portal"></span> <button class="cfb-i" type="button" data-more="pb-i-2" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-2" hidden>A transfer happens after a season is played, so it is flagged onto the season it is read from rather than the season it belongs to. Where a player went is shown; nothing about the move changes the numbers beside it.</span></p>
+    <p><b>&ldquo;Team&rdquo; is what his own teammates did at the same job</b>, leave-one-out, so a back taking most of the carries is not compared to himself; <b>vs&nbsp;Tm</b> is the gap. It is shown beside the rate and <b>never subtracted from it</b>. <button class="cfb-i" type="button" data-more="pb-i-3" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-3" hidden>That restraint is measured rather than cautious: building the rating on the gap instead of the rate collapses out-of-sample prediction of a transfer at his next school from R&sup2; 0.283 to <b>0.024</b>. The team a player leaves predicts his production at his new school about as well as his own rate does, so removing it removes information about him. The column answers &ldquo;was it him or the offence around him&rdquo;, which is a question about description, not prediction. Harding&rsquo;s 2025 backfield is the case that prompted it: 14.35 yards a carry beside teammates at 7.87, on a team that led all 667 in the corpus at 8.73.</span></p>
+    <p><b>&ldquo;After the season&rdquo; answers one question with four different kinds of certainty</b>, and <b>a player who disappears but was not a senior is called &ldquo;off rosters&rdquo;, never graduated</b>. <button class="cfb-i" type="button" data-more="pb-i-4" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-4" hidden>A <i>destination</i> is a fact &mdash; he is in next year&rsquo;s incoming class with a school attached. <i>Returned</i> and <i>graduated</i> are read from whether he is on a roster the following season: absence plus eligibility running out is about as close to graduation as this data gets. A sophomore who vanishes is far more likely a transfer to a school we did not scrape than a man who finished his degree two years early, and naming the two the same would turn a coverage gap into a life event. A blank means he was not on a roster we hold for this season either, so nothing can be said.</span></p>
+    <p><b>The Rating column holds two different measurements</b>, marked <span class="pl-rate">0.8536<span class="pl-src">O</span></span> for offensive production and <span class="pl-rate">0.8536<span class="pl-src">D</span></span> for defensive. <b>The defensive rating is not comparable across divisions.</b> <button class="cfb-i" type="button" data-more="pb-i-5" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-5" hidden><b>O</b> is per-attempt production, opponent-adjusted through the division bridge, so a dominant D3 quarterback is not mistaken for an FBS one. <b>D</b> is <i>given that he made the tackle, how good was the tackle</i>, rated inside his own position group. A defender has no denominator &mdash; his credited snaps <i>are</i> his tackles &mdash; so volume is deliberately not in the rating, only in how far it is shrunk. The division warning is measured rather than assumed: a safety makes his tackle about 8.5 yards downfield whether he plays for Ohio State or Oberlin (D2 8.37, D3 8.73, FBS 8.52, FCS 8.47). Division shows up in how often a defence gets a stop, not in the geometry of the tackles that happen.</span></p>
+    <p><b>A blank rating means one of two things</b>, and the page counts them rather than guessing: <span id="pl-unrated"></span> <button class="cfb-i" type="button" data-more="pb-i-6" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-6" hidden>No defensive production rating has been built for the roles that show a blank, so a blank is the correct output for a thing that does not exist &mdash; inventing one to fill the column would be inventing a finding. A rating is also withheld where the rated role covers under 40% of a player&rsquo;s snaps: a punter&rsquo;s rating on a quarterback&rsquo;s line is real, and about the wrong thing.</span></p>
+    <p id="pl-early" hidden></p>
+    <p><b>Nothing on this page is read by any rating.</b> <button class="cfb-i" type="button" data-more="pb-i-7" aria-expanded="false" aria-label="More about this">i</button><span class="cfb-more" id="pb-i-7" hidden>Swapping production into the talent composite was measured at &minus;0.0061 MAE, CI [&minus;0.035, +0.024] &mdash; nominally the wrong way. The event counts behind these rows are not inert: they feed net returning production, summed per team. So a team&rsquo;s rating can move on how much a player played, never on the number shown here.</span></p>
+  </div>
+</section>
+
+<section>
+  <div class="pl-bar">
+    <span class="pl-seg" id="pl-view">
+      <button data-v="all" class="on">Overview</button>
+      <button data-v="pass">Passing</button>
+      <button data-v="rush">Rushing</button>
+      <button data-v="rec">Receiving</button>
+      <button data-v="def">Defense</button>
+    </span>
+    <select id="pl-div"></select>
+    <select id="pl-pos"></select>
+    <select id="pl-move">
+      <option value="">Everyone</option>
+      <option value="moved">Transferred after</option>
+      <option value="returned">Came back</option>
+      <option value="graduated">Graduated</option>
+      <option value="gone">Left, not a senior</option>
+    </select>
+    <select id="pl-rated">
+      <option value="">Rated or not</option>
+      <option value="1">Has a rating</option>
+      <option value="0">No rating yet</option>
+    </select>
+    <label>min snaps <input id="pl-min" type="number" value="50" min="0"
+      step="10" size="4" style="width:5.5em"></label>
+    <span class="pl-count" id="pl-n"></span>
+  </div>
+  <div class="pl-tw"><div class="pl-tbl">
+    <table><thead><tr id="pl-head"></tr></thead><tbody id="pl-body"></tbody></table>
+  </div></div>
+  <div class="pl-empty" id="pl-none" hidden>Nothing matches those filters.</div>
+</section>
+</main>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/player_board.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+
+/* Column sets per stat view. `k` is the payload key, `t` the header,
+   `l` marks a left-aligned text column, `f` an optional formatter.
+   Heterogeneous stats in one table is why this page has views at all:
+   a linebacker and a quarterback share almost no columns, and showing
+   the union gives a table that is 80% blank whichever row you read. */
+var one = function (v) { return (v === null || v === undefined) ? '' : v; };
+var r1 = function (v) { return (v === null || v === undefined) ? '' : (+v).toFixed(1); };
+var r3 = function (v) { return (v === null || v === undefined) ? '' : (+v).toFixed(3); };
+var r4 = function (v) { return (v === null || v === undefined) ? '' : (+v).toFixed(4); };
+var pct = function (v) { return (v === null || v === undefined) ? '' : (100 * v).toFixed(1) + '%'; };
+
+var BASE = [
+  {k: 'k', t: 'Player', l: 1}, {k: 'pos', t: 'Pos', l: 1},
+  {k: 'tm', t: 'Team', l: 1}, {k: 'div', t: 'Div', l: 1},
+  {k: 'ev', t: 'Snaps'}
+];
+var TAIL = [
+  {k: 'prod', t: 'Rating', f: r4}, {k: 'st', t: 'Stars'},
+  {k: 'nx', t: 'After the season', l: 1}
+];
+/* His own teammates at the same job, and the gap. Leave-one-out, so a
+   back who takes most of the carries is not being compared to himself.
+   Shown beside the rate and never subtracted from it -- see the note
+   above the table for why. */
+var TM = [{k: 'tmr', t: 'Team', f: r3, role: 1},
+          {k: 'gap', t: 'vs Tm', f: r3, d: 1, role: 1}];
+/* The teammate baseline is computed for the player's OWN role -- a
+   receiver's is yards per target. Shown in the Rushing view it sat
+   beside his Y/C and read as a rushing comparison, which it is not:
+   Hobart's Johnny Harding showed 4.00 Y/C against a "team" 9.48 and a
+   gap of +1.65, three numbers that cannot all be about the same thing.
+   So a role-scoped column renders only on the row whose role the view
+   is about. */
+var VIEW_ROLE = {pass: 'passer', rush: 'rusher', rec: 'receiver'};
+var VIEWS = {
+  all:  BASE.concat([{k: 'role', t: 'Role', l: 1},
+                     {k: 'gap', t: 'vs Tm', f: r3, d: 1}], TAIL),
+  pass: BASE.concat([
+    {k: 'att', t: 'Att'}, {k: 'cmpn', t: 'Cmp'}, {k: 'cmp', t: 'Cmp%', f: pct},
+    {k: 'py', t: 'Yds'}, {k: 'ypa', t: 'Y/A', f: r3}], TM, [
+    {k: 'ptd', t: 'TD'}, {k: 'ith', t: 'Int'}, {k: 'sk', t: 'Sk'}], TAIL),
+  rush: BASE.concat([
+    {k: 'rsh', t: 'Car'}, {k: 'ry', t: 'Yds'}, {k: 'ypc', t: 'Y/C', f: r3}],
+    TM, [{k: 'rtd', t: 'TD'}, {k: 'fum', t: 'Fum'}], TAIL),
+  rec:  BASE.concat([
+    {k: 'tgt', t: 'Tgt'}, {k: 'cy', t: 'Yds'}, {k: 'ypt', t: 'Y/T', f: r3}],
+    TM, [{k: 'ctd', t: 'TD'}, {k: 'fum', t: 'Fum'}], TAIL),
+  def:  BASE.concat([
+    {k: 'tk', t: 'Tkl'}, {k: 'tfl', t: 'TFL'}, {k: 'int', t: 'Int'}], TAIL)
+};
+/* A stat view is a lens, not a filter -- except where showing a row
+   would be showing a line of zeros. A quarterback has no targets. */
+var GATE = {all: null, pass: 'att', rush: 'rsh', rec: 'tgt',
+            def: function (r) { return (r.tk || 0) + (r.tfl || 0) + (r.int || 0); }};
+
+var S = {view: 'all', div: '', pos: '', move: '', rated: '',
+         min: D.min_events, q: '', sort: 'ev', desc: true};
+
+function rows() {
+  var q = S.q.toLowerCase(), g = GATE[S.view];
+  return D.rows.filter(function (r) {
+    if (r.ev < S.min) return false;
+    if (S.div && r.div !== S.div) return false;
+    /* One control, two levels: `g:DB` is every defensive back,
+       `p:S` is safeties only. The sources disagree about how specific
+       they are -- 28,685 players are listed as plain OL and 3,815 as
+       OT -- so offering the two as peers would imply a precision the
+       rosters do not have. */
+    if (S.pos) {
+      if (S.pos.charAt(0) === 'g' ? r.grp !== S.pos.slice(2)
+                                  : r.pos !== S.pos.slice(2)) return false;
+    }
+    if (S.move && r.nx !== S.move) return false;
+    if (S.rated === '1' && r.prod === null) return false;
+    if (S.rated === '0' && r.prod !== null) return false;
+    if (q && (r.k + ' ' + r.tm).toLowerCase().indexOf(q) < 0) return false;
+    if (g) { var v = (typeof g === 'function') ? g(r) : r[g]; if (!v) return false; }
+    return true;
+  });
+}
+
+function draw() {
+  var cols = VIEWS[S.view], list = rows();
+  list.sort(function (a, b) {
+    var x = a[S.sort], y = b[S.sort];
+    /* A missing value is not a small value. Blanks sort to the bottom
+       in either direction, so flipping the arrow never parades the
+       unrated players to the top as if they scored zero. */
+    var xn = (x === null || x === undefined || x === ''),
+        yn = (y === null || y === undefined || y === '');
+    if (xn && yn) return 0;
+    if (xn) return 1;
+    if (yn) return -1;
+    if (typeof x === 'string' || typeof y === 'string') {
+      x = String(x).toLowerCase(); y = String(y).toLowerCase();
+      return (x < y ? -1 : x > y ? 1 : 0) * (S.desc ? -1 : 1);
+    }
+    return (x - y) * (S.desc ? -1 : 1);
+  });
+
+  var h = document.getElementById('pl-head');
+  h.innerHTML = '';
+  cols.forEach(function (c) {
+    var th = document.createElement('th');
+    th.textContent = c.t;
+    if (c.l) th.className = 'pl-l';
+    if (c.k === S.sort) th.className += ' pl-sorted';
+    th.onclick = function () {
+      if (S.sort === c.k) { S.desc = !S.desc; }
+      else { S.sort = c.k; S.desc = !c.l; }
+      draw();
+    };
+    h.appendChild(th);
+  });
+
+  var b = document.getElementById('pl-body');
+  b.innerHTML = '';
+  var frag = document.createDocumentFragment();
+  list.slice(0, 4000).forEach(function (r) {
+    var tr = document.createElement('tr');
+    cols.forEach(function (c) {
+      var td = document.createElement('td');
+      if (c.l) td.className = 'pl-l';
+      var v = r[c.k];
+      if (c.k === 'st') {
+        if (v === null || v === undefined) {
+          td.className += ' pl-blank'; td.textContent = '—';
+        } else { td.className += ' pl-star'; td.textContent = v + '★'; }
+      } else if (c.k === 'nx') {
+        /* One column, because these are four answers to one question.
+           A destination is a fact we hold; the rest are read from a
+           roster he is or is not on the following season. */
+        if (v === 'moved' && r.to) {
+          td.innerHTML = '<span class="pl-moved"></span>';
+          td.firstChild.textContent = r.to;
+        } else if (v === 'moved?') {
+          td.innerHTML = '<span class="pl-grad"></span>';
+          td.firstChild.textContent = 'transferred, school unknown';
+        } else if (v === 'graduated') {
+          td.innerHTML = '<span class="pl-grad"></span>';
+          td.firstChild.textContent = 'graduated';
+        } else if (v === 'gone') {
+          td.innerHTML = '<span class="pl-grad"></span>';
+          td.firstChild.textContent = 'off rosters';
+        } else if (v === 'returned') {
+          td.className += ' pl-dim'; td.textContent = 'returned';
+        } else { td.className += ' pl-blank'; td.textContent = '—'; }
+      } else if (c.k === 'prod') {
+        if (v === null || v === undefined) {
+          td.className += ' pl-blank'; td.textContent = '—';
+        } else {
+          td.className += ' pl-rate';
+          td.textContent = r4(v);
+          if (r.rs) {
+            var sp = document.createElement('span');
+            sp.className = 'pl-src';
+            sp.textContent = r.rs === 'def' ? 'D' : 'O';
+            sp.title = r.rs === 'def'
+              ? 'Defensive rating: disruptiveness given involvement, '
+                + 'within position group. Not comparable across divisions.'
+              : 'Offensive rating: per-attempt production, '
+                + 'opponent-adjusted through the division bridge.';
+            td.appendChild(sp);
+          }
+        }
+      } else if (c.role && VIEW_ROLE[S.view] && r.role !== VIEW_ROLE[S.view]) {
+        td.className += ' pl-blank'; td.textContent = '—';
+      } else if (c.d) {
+        /* Signed, and neutral at zero -- a back who matches his
+           teammates exactly is neither good nor bad here. */
+        if (v === null || v === undefined) {
+          td.className += ' pl-blank'; td.textContent = '—';
+        } else {
+          td.style.color = v > 0.05 ? 'var(--pos)'
+                         : v < -0.05 ? 'var(--neg)' : 'var(--muted)';
+          td.textContent = (v > 0 ? '+' : '') + (+v).toFixed(2);
+        }
+      } else {
+        td.textContent = c.f ? c.f(v) : one(v);
+      }
+      tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  });
+  b.appendChild(frag);
+
+  document.getElementById('pl-none').hidden = list.length > 0;
+  document.getElementById('pl-n').textContent =
+    list.length.toLocaleString() + ' of ' + D.rows.length.toLocaleString()
+    + ' players' + (list.length > 4000 ? ' (first 4,000 shown)' : '');
+}
+
+(function init() {
+  document.getElementById('pl-sub').textContent =
+    D.season + ' · ' + D.n.toLocaleString() + ' players · '
+    + D.n_rated.toLocaleString() + ' rated · generated ' + D.generated;
+  document.getElementById('pl-lede').textContent =
+    'at least ' + D.min_events + ' credited snaps, all four divisions'
+    + (D.progress !== undefined && D.progress < 0.98
+       ? ' \u2014 season about ' + Math.round(100 * D.progress)
+         + '% played, so the snap floor is scaled down to match'
+       : '');
+  /* Early in a season a rating exists long before it is worth
+     translating into stars, and a column of dashes with no explanation
+     reads as a broken join. */
+  if (D.progress !== undefined && D.progress < 0.98) {
+    var w = document.getElementById('pl-early');
+    w.hidden = false;
+    w.textContent = 'This season is still being played. Ratings appear as '
+      + 'soon as a player has enough snaps to be worth adjusting, but the '
+      + 'star translation is withheld below ' + D.min_events_for_stars
+      + ' snaps \u2014 that threshold does not scale with the calendar, '
+      + 'because a thin rating is mostly its own prior in December as '
+      + 'much as in September.';
+  }
+  document.getElementById('pl-portal').textContent = D.portal_year
+    ? ('the ' + D.portal_year + ' portal class is flagged onto these '
+       + D.season + ' stat lines, ' + D.n_moved.toLocaleString()
+       + ' of them.')
+    : ('the ' + D.season + ' season is still being played, so no move '
+       + 'has happened yet and every flag here is empty. That is the '
+       + 'honest state, not a missing join.');
+
+  document.getElementById('pl-sub').textContent +=
+    (D.n_def_rated ? ' · ' + D.n_def_rated.toLocaleString() + ' on defense' : '');
+  document.getElementById('pl-unrated').textContent =
+    D.n_unrated_def.toLocaleString() + ' are defenders, for whom no '
+    + 'production rating exists at all; '
+    + D.n_unrated_other.toLocaleString() + ' have simply not played '
+    + 'enough this season to be rated yet.';
+
+  var dv = document.getElementById('pl-div');
+  dv.innerHTML = '<option value="">All divisions</option>';
+  D.divisions.forEach(function (d) {
+    var o = document.createElement('option'); o.value = d; o.textContent = d;
+    dv.appendChild(o);
+  });
+
+  var pv = document.getElementById('pl-pos');
+  pv.innerHTML = '<option value="">All positions</option>';
+  (D.groups || []).forEach(function (g) {
+    var og = document.createElement('optgroup');
+    og.label = g;
+    var a = document.createElement('option');
+    a.value = 'g:' + g; a.textContent = 'All ' + g;
+    og.appendChild(a);
+    ((D.positions || {})[g] || []).forEach(function (c) {
+      /* A group whose only member is the group's own coarse label
+         (every OL listed as plain `OL`) adds a row that repeats the
+         line above it. */
+      if (c === g && ((D.positions || {})[g] || []).length === 1) return;
+      var o = document.createElement('option');
+      o.value = 'p:' + c; o.textContent = c;
+      og.appendChild(o);
+    });
+    pv.appendChild(og);
+  });
+  pv.onchange = function () { S.pos = this.value; draw(); };
+
+  dv.onchange = function () { S.div = this.value; draw(); };
+  document.getElementById('pl-move').onchange = function () { S.move = this.value; draw(); };
+  document.getElementById('pl-rated').onchange = function () { S.rated = this.value; draw(); };
+  document.getElementById('pl-min').value = D.min_events;
+  document.getElementById('pl-min').oninput = function () {
+    S.min = +this.value || 0; draw();
+  };
+  document.getElementById('pl-q').oninput = function () { S.q = this.value; draw(); };
+  Array.prototype.forEach.call(
+    document.querySelectorAll('#pl-view button'), function (btn) {
+      btn.onclick = function () {
+        Array.prototype.forEach.call(
+          document.querySelectorAll('#pl-view button'),
+          function (o) { o.classList.remove('on'); });
+        btn.classList.add('on');
+        S.view = btn.getAttribute('data-v');
+        /* Sorting by a column the new view does not have would look
+           like the sort was ignored. Fall back to the busiest player. */
+        if (!VIEWS[S.view].some(function (c) { return c.k === S.sort; })) {
+          S.sort = 'ev'; S.desc = true;
+        }
+        draw();
+      };
+    });
+  draw();
+})();
+
+}
+
+CFB.bootOnce({
+  active: 'players', view: 'players',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

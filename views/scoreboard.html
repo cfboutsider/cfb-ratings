@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scoreboard &middot; CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cfb.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font:15px/1.5 'Barlow',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums}
+h1,h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+  letter-spacing:.02em;text-transform:uppercase}
+button,select,input{font:inherit}button{cursor:pointer}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#EDF3EC;
+  padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;
+  border-bottom:3px solid var(--gold)}
+header h1{font-size:23px;font-weight:700}header h1 span{color:var(--gold)}
+.badge{font-family:'Barlow Condensed';font-size:13px;font-weight:600;
+  letter-spacing:.09em;background:var(--gold);color:#17241C;padding:3px 10px;border-radius:3px}
+main{max-width:1240px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+section>h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+section>h2::before{content:"";width:8px;height:8px;background:var(--gold)}
+section>h2 .hint{margin-left:auto;font-family:'Barlow';font-size:11.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400}
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;
+  border-bottom:1px solid var(--line);align-items:center}
+.filters input,.filters select{padding:7px 10px;border:1px solid var(--line-strong);
+  border-radius:6px;background:#fff}
+.filters input[type=search]{flex:1;min-width:160px}
+.chip{border:1px solid var(--line-strong);background:#fff;border-radius:999px;
+  padding:5px 12px;font-size:13px;font-weight:500;color:var(--muted)}
+.chip.on{color:#fff;border-color:transparent;background:var(--ink)}
+.flabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);font-weight:600}
+.defs{padding:12px 16px;border-bottom:1px solid var(--line);font-size:12.5px;
+  color:var(--muted);display:grid;gap:6px}
+.defs b{color:var(--ink)}
+.weekbar{display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-bottom:1px solid var(--line)}
+.weekbar input[type=range]{flex:1;min-width:150px;accent-color:var(--field)}
+.weekbar button{border:1px solid var(--line-strong);background:#fff;
+  border-radius:6px;padding:5px 11px;font-weight:600;color:var(--ink)}
+.weekbar button[disabled]{opacity:.4;cursor:default}
+.wknow{font-family:'Barlow Condensed';font-size:18px;font-weight:700;
+  letter-spacing:.03em;text-transform:uppercase;min-width:96px}
+.wkdate{font-size:12px;color:var(--muted);min-width:150px}
+.tablewrap{max-height:70vh;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font-size:10px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  padding:8px 7px;border-bottom:2px solid var(--line-strong);cursor:pointer}
+th:hover{color:var(--ink)}
+td{padding:6px 7px;border-bottom:1px solid var(--line);vertical-align:middle}
+.num{text-align:right;font-weight:600;white-space:nowrap}
+.dim{color:var(--muted);font-weight:400}
+.pos{color:var(--pos);font-weight:700}.neg{color:var(--neg);font-weight:700}
+.tag{font-size:10px;font-weight:600;letter-spacing:.04em;border-radius:3px;
+  padding:2px 6px;background:#EDF1EA;color:var(--muted);white-space:nowrap}
+.matchup{min-width:250px}
+.matchup .at{color:var(--muted);font-weight:400;font-size:12px}
+.win{font-weight:700}
+.bar{position:relative;height:11px;background:#EDF1EA;border-radius:3px;
+  display:inline-block;width:78px;vertical-align:middle}
+.bar i{position:absolute;left:0;top:0;height:11px;border-radius:3px;
+  background:var(--field)}
+.empty{color:var(--muted);padding:26px 8px;text-align:center}
+footer{padding:18px 20px;color:var(--muted);font-size:12.5px;text-align:center}
+.sb-dc{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+  text-decoration:none;color:var(--gold,#8a6d1f);border:1px solid currentColor;
+  border-radius:9px;padding:0 5px;opacity:.75;white-space:nowrap}
+.sb-dc:hover{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+
+<div class="viewbar">
+  <h1>CFB <span>Scoreboard</span></h1>
+  <span class="badge" id="badge">—</span>
+</div>
+
+<main>
+<section>
+  <h2>Games <span class="hint" id="hint"></span></h2>
+
+  <div class="defs">
+    <div><b>Interest</b> is <b>closeness &times; quality</b>.<button
+        class="cfb-i" type="button" data-more="sb-i-int" aria-expanded="false"
+        aria-label="More about this">i</button>
+      <span class="cfb-more" id="sb-i-int" hidden>It ranks games by how close
+      the model expects them to be, weighted by how good both teams are. A
+      pick&rsquo;em scores highest, and among equally close games the better
+      matchup wins. Filter first, then sort &mdash; within a division the
+      quality term flattens and closeness does the work.</span></div>
+    <div><b>Line</b> is the predicted margin from the home team&rsquo;s point of
+      view; negative means the visitor is favoured.<button
+        class="cfb-i" type="button" data-more="sb-i-line" aria-expanded="false"
+        aria-label="More about this">i</button>
+      <span class="cfb-more" id="sb-i-line" hidden>Neutral-site games are
+      marked <span class="tag">N</span> and carry no home-field
+      adjustment.</span></div>
+  </div>
+
+  <div class="weekbar">
+    <button id="prev" type="button">&larr;</button>
+    <span class="wknow" id="wknow">Week —</span>
+    <input type="range" id="wk" min="0" max="0" value="0" step="1"
+           aria-label="Week">
+    <button id="next" type="button">&rarr;</button>
+    <span class="wkdate" id="wkdate"></span>
+  </div>
+
+  <div class="filters">
+    <input type="search" id="q" placeholder="Search team or conference…">
+    <select id="conf"><option value="">All conferences</option></select>
+    <span class="flabel" id="tierlabel" style="display:none">Tier</span>
+    <span id="tiers"></span>
+  </div>
+
+  <div class="filters">
+    <span class="flabel">Division</span><span id="dgroups"></span>
+    <span id="divs"></span>
+  </div>
+  <div class="filters">
+    <span class="flabel">Sort</span><span id="sorts"></span>
+    <span class="flabel">Show</span><span id="only"></span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th style="width:82px">Date</th>
+        <th class="matchup">Matchup</th>
+        <th class="num" style="width:64px">Line</th>
+        <th class="num" style="width:60px">Win%</th>
+        <th class="num" style="width:78px">Score</th>
+        <th class="num" style="width:130px">Interest</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="empty" id="none" style="display:none">
+    No games match these filters.</div>
+</section>
+</main>
+
+<footer id="meta"></footer>
+
+<script src="../assets/cfb.js"></script>
+<script>
+var D = null;
+/* Built from dashboard/scoreboard.html by tools/convert_views.py.
+   The page body is unchanged; it is only deferred until the
+   season's data has been fetched. */
+function initView(){
+
+
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function f1(n){return (n===null||n===undefined)?'—':(Math.round(n*10)/10).toFixed(1);}
+function sgn(n){return (n===null||n===undefined)?'—':((n>0?'+':'')+f1(n));}
+function pct(n){return (n===null||n===undefined)?'—':(100*n).toFixed(0)+'%';}
+
+/* Short date. The payload carries ISO so it sorts as text; the display
+   form is built by hand rather than with toLocaleDateString, which
+   renders differently depending on the visitor's locale and would make
+   two people describing the same row disagree about what it says. */
+var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function shortDate(iso){
+  if(!iso)return '—';
+  var p=String(iso).split('-');
+  if(p.length!==3)return esc(iso);
+  return MONTHS[(+p[1])-1]+' '+(+p[2]);}
+
+var G = D.games || [];
+var weeks = D.weeks || [];
+var divFilter={}, confFilter='', tierFilter='', query='', only='all';
+var sortK='int', wkIdx=Math.max(0, weeks.indexOf(D.current_week));
+(D.divisions||[]).forEach(function(d){divFilter[d]=true;});
+
+/* ---- controls ------------------------------------------------------ */
+var divWrap=document.getElementById('divs'), divChips={};
+(D.divisions||[]).forEach(function(d){
+  var b=document.createElement('button');
+  b.type='button';b.className='chip on';b.textContent=d;
+  b.onclick=function(){divFilter[d]=!divFilter[d];
+    b.classList.toggle('on',divFilter[d]);render();};
+  divWrap.appendChild(b);divChips[d]=b;});
+
+/* Division-group presets.
+
+   The per-division chips stay: they are the precise control, and a
+   preset that replaced them would cost the ability to ask for, say,
+   FBS-plus-NAIA. These are the shortcut for the four or five groupings
+   anyone actually wants, and they drive the same divFilter the chips
+   do, so the chips visibly move when a preset is pressed. A preset that
+   silently disagreed with the visible chips would be the worse kind of
+   wrong -- the page would be filtering by something it is not showing.
+
+   Membership is by division *name*, which is the model's own
+   vocabulary (config.DIVISION_ALIASES), so a group whose divisions are
+   all absent from this season is not rendered rather than rendering as
+   a button that does nothing. */
+var DGROUPS=[
+  ['All',   null],
+  ['FBS',   ['NCAA FBS']],
+  ['FCS',   ['NCAA FCS']],
+  ['D1',    ['NCAA FBS','NCAA FCS']],
+  ['D2/D3', ['NCAA D2','NCAA D3']],
+  ['Small', ['NAIA','NJCAA','CCCAA','NCCAA','U-Sports','Other']]
+];
+var dgWrap=document.getElementById('dgroups');
+DGROUPS.forEach(function(grp){
+  var name=grp[0], members=grp[1];
+  if(members && !members.some(function(d){return divChips[d];}))return;
+  var b=document.createElement('button');
+  b.type='button';b.className='chip';b.textContent=name;
+  b.onclick=function(){
+    (D.divisions||[]).forEach(function(d){
+      divFilter[d]=members?members.indexOf(d)>=0:true;
+      divChips[d].classList.toggle('on',divFilter[d]);});
+    var sib=dgWrap.querySelectorAll('.chip');
+    for(var i=0;i<sib.length;i++)sib[i].classList.remove('on');
+    b.classList.add('on');render();};
+  dgWrap.appendChild(b);});
+
+/* Conference tier. Absent when the season has no conference_tiers.csv
+   -- an empty control that filters nothing is worse than no control,
+   because it reads as "no games matched". */
+var tierWrap=document.getElementById('tiers');
+if((D.tiers||[]).length){
+  document.getElementById('tierlabel').style.display='';
+  var tierOpts=[['','All']].concat((D.tiers||[]).map(function(t){
+    return [t,t];}));
+  tierOpts.forEach(function(o){
+    var b=document.createElement('button');
+    b.type='button';b.className='chip'+(o[0]===''?' on':'');
+    b.textContent=o[1];
+    b.onclick=function(){
+      tierFilter=o[0];
+      var sib=tierWrap.querySelectorAll('.chip');
+      for(var i=0;i<sib.length;i++)sib[i].classList.remove('on');
+      b.classList.add('on');render();};
+    tierWrap.appendChild(b);});
+}
+
+function chipRow(hostId, opts, initial, set){
+  var host=document.getElementById(hostId);
+  opts.forEach(function(o){
+    var b=document.createElement('button');
+    b.type='button';
+    b.className='chip'+(o[0]===initial?' on':'');
+    b.textContent=o[1];
+    b.onclick=function(){
+      set(o[0]);
+      var sib=host.querySelectorAll('.chip');
+      for(var i=0;i<sib.length;i++)sib[i].classList.remove('on');
+      b.classList.add('on');render();};
+    host.appendChild(b);});
+}
+chipRow('sorts', [['int','Interest'],['time','Kickoff'],
+                  ['margin','Closest line'],['upset','Biggest upset']],
+        'int', function(v){sortK=v;});
+chipRow('only', [['all','All'],['played','Played'],['upcoming','Upcoming']],
+        'all', function(v){only=v;});
+
+var confSel=document.getElementById('conf');
+(D.conferences||[]).forEach(function(c){
+  var o=document.createElement('option');o.value=c;o.textContent=c;
+  confSel.appendChild(o);});
+confSel.onchange=function(){confFilter=confSel.value;render();};
+
+document.getElementById('q').oninput=function(e){
+  query=e.target.value.trim().toLowerCase();render();};
+
+var wkInput=document.getElementById('wk');
+wkInput.min=0;wkInput.max=Math.max(0,weeks.length-1);wkInput.value=wkIdx;
+wkInput.oninput=function(){wkIdx=+wkInput.value;render();};
+document.getElementById('prev').onclick=function(){
+  if(wkIdx>0){wkIdx--;wkInput.value=wkIdx;render();}};
+document.getElementById('next').onclick=function(){
+  if(wkIdx<weeks.length-1){wkIdx++;wkInput.value=wkIdx;render();}};
+
+/* ---- selection ----------------------------------------------------- */
+function visible(){
+  var wk=weeks[wkIdx];
+  return G.filter(function(g){
+    if(g.wk!==wk)return false;
+    /* A game is in a division if *either* side is -- otherwise every
+       cross-division game disappears the moment one division is
+       unticked, and those are the games most worth finding. */
+    if(!(divFilter[g.hd]||divFilter[g.ad]))return false;
+    if(confFilter && g.hc!==confFilter && g.ac!==confFilter)return false;
+    /* Either side, for the same reason the division filter is either
+       side: a P4 team playing an FCS opponent is a P4 game, and asking
+       for P4 and being shown only the conference slate would hide
+       September entirely. */
+    if(tierFilter && g.ht!==tierFilter && g.at!==tierFilter)return false;
+    if(only==='played' && !g.played)return false;
+    if(only==='upcoming' && g.played)return false;
+    if(query){
+      var hay=(g.h+' '+g.a+' '+(g.hc||'')+' '+(g.ac||'')).toLowerCase();
+      if(hay.indexOf(query)<0)return false;}
+    return true;});
+}
+
+/* How far the result defied the line, in points. Only defined once a
+   game has been played; an unplayed game has no upset to measure and
+   sorts to the bottom rather than to the top as a zero would. */
+function upsetBy(g){
+  if(!g.played||g.m===null||g.m===undefined)return null;
+  return Math.abs((g.hp-g.ap)-g.m);}
+
+var SORTS={
+  int:    function(a,b){return (b.int||0)-(a.int||0);},
+  margin: function(a,b){return Math.abs(a.m==null?999:a.m)
+                             -Math.abs(b.m==null?999:b.m);},
+  upset:  function(a,b){var x=upsetBy(a),y=upsetBy(b);
+                        return (y===null?-1:y)-(x===null?-1:x);},
+  time:   function(a,b){return a.date<b.date?-1:a.date>b.date?1:
+                               (b.int||0)-(a.int||0);}
+};
+
+/* ---- render -------------------------------------------------------- */
+function render(){
+  var wk=weeks[wkIdx];
+  var rows=visible().slice().sort(SORTS[sortK]||SORTS.int);
+
+  document.getElementById('wknow').textContent =
+    wk===undefined?'Week —':('Week '+wk);
+  var dates=rows.map(function(g){return g.date;}).sort();
+  var all=G.filter(function(g){return g.wk===wk;})
+           .map(function(g){return g.date;}).sort();
+  document.getElementById('wkdate').textContent = all.length
+    ? (shortDate(all[0]) + (all[all.length-1]!==all[0]
+        ? ' – '+shortDate(all[all.length-1]) : ''))
+    : '';
+  document.getElementById('prev').disabled = wkIdx<=0;
+  document.getElementById('next').disabled = wkIdx>=weeks.length-1;
+
+  var played=rows.filter(function(g){return g.played;}).length;
+  document.getElementById('hint').textContent =
+    rows.length + (rows.length===1?' game':' games')
+    + (played?', '+played+' played':'');
+
+  var top=rows.reduce(function(m,g){return Math.max(m,g.int||0);},0)||1;
+  var html='';
+  rows.forEach(function(g){
+    var line = g.m===null||g.m===undefined ? '—'
+      : '<span class="'+(g.m>0?'pos':g.m<0?'neg':'dim')+'">'+sgn(g.m)+'</span>';
+    var score='<span class="dim">—</span>';
+    if(g.played){
+      var hw=g.hp>g.ap, aw=g.ap>g.hp;
+      score='<span class="'+(aw?'win':'dim')+'">'+g.ap+'</span>'
+          + '<span class="dim"> – </span>'
+          + '<span class="'+(hw?'win':'dim')+'">'+g.hp+'</span>';}
+    var w=Math.round(100*(g.int||0)/top);
+    html += '<tr>'
+      + '<td class="dim">'+shortDate(g.date)+'</td>'
+      + '<td class="matchup">'+esc(g.a)
+      +   '<span class="at"> '+(g.n?'vs':'at')+' </span>'+esc(g.h)
+      +   (g.n?' <span class="tag">N</span>':'')
+      /* Only games with a drive chart get a link. `dc` is stamped at
+         build time by a name join (site.py `_drive_links`); a game the
+         join could not resolve simply has no field here, so there is
+         never a link that goes nowhere. */
+      +   (g.dc?(' <a class="sb-dc" title="Drive chart" href="drives.html#'
+      +          encodeURI(g.dc)+'">drives</a>'):'')
+      +   '<div class="dim" style="font-size:11.5px">'
+      +     esc(g.ac||g.ad||'')+' &middot; '+esc(g.hc||g.hd||'')+'</div></td>'
+      + '<td class="num">'+line+'</td>'
+      + '<td class="num dim">'+pct(g.wp)+'</td>'
+      + '<td class="num">'+score+'</td>'
+      + '<td class="num">'+f1(g.int)
+      +   ' <span class="bar" title="closeness '+f1(100*(g.close||0))
+      +   '%, quality '+f1(100*(g.qual||0))+'%">'
+      +   '<i style="width:'+w+'%"></i></span></td>'
+      + '</tr>';});
+
+  document.getElementById('rows').innerHTML=html;
+  document.getElementById('none').style.display=rows.length?'none':'block';
+}
+
+document.getElementById('badge').textContent = D.season || '';
+document.getElementById('meta').textContent =
+  'Generated ' + (D.generated||'') + ' · ' + (G.length).toLocaleString()
+  + ' scheduled games'
+  + ((D.unmatched_teams||[]).length
+      ? ' · ' + D.unmatched_teams.length
+        + ' team(s) missing a division: ' + D.unmatched_teams.join(', ')
+      : '');
+render();
+
+}
+
+CFB.bootOnce({
+  active: 'scoreboard', view: 'scoreboard',
+  onData: function(data){ D = data; initView(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFB Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/cfb.css">
+</head>
+<body>
+
+<div class="sitebar"><div class="inner"></div></div>
+
+<div class="lede">
+  <h1>College football, <span>rated</span></h1>
+  <p>A competitiveness rating for every team across FBS, FCS, Division II,
+     Division III and the NAIA &mdash; built from results, updated weekly, and
+     scored against what actually happened. Every projection on this site
+     was recorded before the games it describes.</p>
+</div>
+
+<div id="topgames" class="topgames" hidden>
+  <div class="grp-h"><b><a href="views/scoreboard.html">This week</a></b>
+    <span>The closest, best games on the schedule.</span></div>
+  <div class="tg-rows" id="tgrows"></div>
+</div>
+
+<div id="groups"></div>
+
+<footer><div id="meta"></div></footer>
+
+<script src="assets/cfb.js"></script>
+<script>
+/* The home page mirrors the ribbon exactly: one block per section, in
+   the same order, with the same names. Two different groupings of the
+   same nine dashboards is the kind of thing that makes a site feel
+   subtly wrong without anyone being able to say why. */
+CFB.renderNav('home');
+CFB.renderFooter();
+CFB.renderRail();
+
+var ORDER = ['scoreboard', 'dashboards', 'team', 'sandbox', 'accuracy'];
+
+/* The week's best games, above the section grid.
+   Reads the scoreboard payload the view already ships, so there is no
+   second data path to keep in step -- if the strip and the page ever
+   disagreed, the strip is what people would see first and the page is
+   what they would check, which is the wrong way round.
+   Failure is silent *by design* here and nowhere else: this is an
+   ornament on the front page, and a season with no scoreboard built
+   should render the site rather than an error where the games go. */
+function topGames(m) {
+  var years = ((m.views || {}).scoreboard || {}).years || [];
+  if (!years.length) return Promise.resolve();
+  var year = years[years.length - 1];
+  return fetch(CFB.root + 'data/' + year + '/scoreboard.json')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !d.games || !d.games.length) return;
+      var wk = d.current_week;
+      var games = d.games.filter(function (g) { return g.wk === wk; })
+        .sort(function (a, b) { return (b.int || 0) - (a.int || 0); })
+        .slice(0, 6);
+      if (!games.length) return;
+      var html = '';
+      games.forEach(function (g) {
+        var line = (g.m === null || g.m === undefined) ? '&mdash;'
+          : ((g.m > 0 ? '+' : '') + g.m.toFixed(1));
+        var score = g.played ? (g.ap + '&ndash;' + g.hp) : line;
+        html += '<a class="tg" href="' + CFB.viewHref('scoreboard', year) + '">'
+          + '<span class="tg-i">' + Math.round(g.int || 0) + '</span>'
+          + '<span class="tg-m">' + CFB.esc(g.a)
+          + '<em> ' + (g.n ? 'vs' : 'at') + ' </em>' + CFB.esc(g.h) + '</span>'
+          + '<span class="tg-n">' + score + '</span></a>';
+      });
+      document.getElementById('tgrows').innerHTML = html;
+      document.getElementById('topgames').hidden = false;
+    })
+    .catch(function () { /* no scoreboard for this season; show the rest */ });
+}
+
+CFB.manifest().then(function (m) {
+  topGames(m);
+  var host = document.getElementById('groups');
+  var html = '';
+
+  ORDER.forEach(function (key) {
+    var sec = CFB.SECTIONS[key];
+    var views = [];
+    (sec.groups || []).forEach(function (g) {
+      g[2].forEach(function (v) { if ((m.views || {})[v]) views.push(v); });
+    });
+    if (!views.length) return;
+    html += '<div class="grp-h"><b><a href="' + CFB.root + sec.href + '">'
+      + CFB.esc(sec.label) + '</a></b><span>' + CFB.esc(sec.blurb || '')
+      + '</span></div><div class="cards">';
+    views.forEach(function (v) {
+      var info = m.views[v];
+      var years = (info.years || []).slice().reverse();
+      html += '<div class="card"><h3><a href="'
+        + CFB.viewHref(v, years[0]) + '">'
+        + CFB.esc(CFB.VIEW_TITLES[v] || info.title) + '</a></h3>'
+        + '<p>' + CFB.esc(CFB.VIEW_BLURBS[v] || '') + '</p>'
+        + '<div class="yrs">'
+        + (years.length
+           ? years.map(function (y) {
+               return '<a href="' + CFB.viewHref(v, y) + '">' + y + '</a>';
+             }).join('')
+           : '<a href="' + CFB.viewHref(v) + '">Open</a>')
+        + '</div></div>';
+    });
+    html += '</div>';
+  });
+
+  host.innerHTML = html || '<div class="cards"><div class="card">'
+    + '<h3>No views built yet</h3><p>Run the site build to populate '
+    + 'this page.</p></div></div>';
+
+  document.getElementById('meta').textContent =
+    'Ratings and projections generated ' + (m.generated || '') + '.';
+
+  /* Posts last, and only if there are any -- an empty "Posts" heading
+     on the front page advertises a section with nothing behind it. */
+  return fetch(CFB.root + 'data/posts/index.json')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !d.posts || !d.posts.length) return;
+      var sec = CFB.SECTIONS.posts;
+      var h = '<div class="grp-h"><b><a href="' + CFB.root + sec.href + '">'
+        + 'Posts</a></b><span>' + CFB.esc(sec.blurb) + '</span></div>'
+        + '<div class="cards">';
+      d.posts.slice(0, 3).forEach(function (p) {
+        h += '<div class="card"><h3><a href="' + CFB.root
+          + 'views/post.html?p=' + encodeURIComponent(p.slug) + '">'
+          + CFB.esc(p.title) + '</a></h3>'
+          + '<p>' + CFB.esc(p.summary || '') + '</p>'
+          + '<div class="yrs"><a href="' + CFB.root + 'views/post.html?p='
+          + encodeURIComponent(p.slug) + '">' + CFB.esc(p.date) + '</a></div>'
+          + '</div>';
+      });
+      host.insertAdjacentHTML('beforeend', h + '</div>');
+    })
+    .catch(function () { /* no posts is not an error */ });
+}).catch(function (e) { CFB.fail('groups', e); });
+</script>
+</body>
+</html>
